@@ -1,0 +1,19 @@
+# Root ignore rules for the budget tracker solution.
+# Connects to: git, dotnet build outputs, local environment files.
+# Created: 2026-07-01
+
+.env
+venv/
+__pycache__/
+*.pyc
+node_modules/
+.DS_Store
+*.log
+dist/
+build/
+bin/
+obj/
+.vs/
+.dotnet/
+TestResults/
+AGENTS.md
