@@ -1,5 +1,5 @@
 // Persistence/JsonCategoryBudgetTargetProvider.cs
-// Loads monthly category targets from a JSON configuration file.
+// Loads and saves monthly category targets in a JSON configuration file.
 // Connects to: Abstractions/ICategoryBudgetTargetProvider.cs, Models/CategoryBudgetTarget.cs, Logging/StructuredConsoleLogger.cs
 // Created: 2026-07-01
 
@@ -64,6 +64,38 @@ public sealed class JsonCategoryBudgetTargetProvider : ICategoryBudgetTargetProv
         {
             logger.LogError("Budget target configuration could not be read.", new { filePath, exception.Message });
             throw new InvalidOperationException($"Could not read budget target configuration at '{filePath}'.", exception);
+        }
+    }
+
+    /// <summary>
+    /// Saves monthly targets to the JSON configuration file.
+    /// </summary>
+    /// <param name="targets">The targets to persist.</param>
+    public void SaveTargets(IReadOnlyList<CategoryBudgetTarget> targets)
+    {
+        ValidateTargets(targets);
+
+        try
+        {
+            var directoryPath = Path.GetDirectoryName(filePath);
+
+            if (!string.IsNullOrWhiteSpace(directoryPath))
+            {
+                Directory.CreateDirectory(directoryPath);
+            }
+
+            var content = JsonSerializer.Serialize(targets, new JsonSerializerOptions(SerializerOptions)
+            {
+                WriteIndented = true
+            });
+
+            File.WriteAllText(filePath, content);
+            logger.LogInfo("Budget targets saved to configuration.", new { filePath, count = targets.Count });
+        }
+        catch (IOException exception)
+        {
+            logger.LogError("Budget target configuration could not be written.", new { filePath, exception.Message });
+            throw new InvalidOperationException($"Could not write budget target configuration at '{filePath}'.", exception);
         }
     }
 

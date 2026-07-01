@@ -54,7 +54,8 @@ public sealed class ConsoleWorkflow
                     "3" => RunCsvExport(),
                     "4" => RunListEntries(),
                     "5" => RunCsvImport(),
-                    "6" => false,
+                    "6" => RunEditCategoryBudgetTarget(),
+                    "7" => false,
                     _ => HandleUnknownOption()
                 };
             }
@@ -243,12 +244,42 @@ public sealed class ConsoleWorkflow
     }
 
     /// <summary>
+    /// Updates the monthly target for a configured category.
+    /// </summary>
+    /// <returns>True to continue the menu loop.</returns>
+    private bool RunEditCategoryBudgetTarget()
+    {
+        var targets = budgetTrackerService.GetConfiguredBudgetTargets();
+
+        if (targets.Count == 0)
+        {
+            WriteLine("No configured budget targets were found.");
+            return true;
+        }
+
+        WriteLine("Current monthly category targets:");
+
+        foreach (var target in targets)
+        {
+            WriteLine($"- {target.Category}: ${target.MonthlyTarget:0.00} ({target.EvaluationMode})");
+        }
+
+        var category = ReadTargetCategory(targets);
+        var currentTarget = targets.First(target => string.Equals(target.Category, category, StringComparison.OrdinalIgnoreCase));
+        var newTarget = ReadPositiveAmount($"Enter the new monthly target for {currentTarget.Category} (current ${currentTarget.MonthlyTarget:0.00})");
+
+        budgetTrackerService.UpdateCategoryBudgetTarget(currentTarget.Category, newTarget);
+        WriteLine($"Updated {currentTarget.Category} target to ${newTarget:0.00}.");
+        return true;
+    }
+
+    /// <summary>
     /// Handles invalid menu input.
     /// </summary>
     /// <returns>True to continue the menu loop.</returns>
     private static bool HandleUnknownOption()
     {
-        WriteLine("Unknown option. Choose 1 through 6.");
+        WriteLine("Unknown option. Choose 1 through 7.");
         return true;
     }
 
@@ -263,7 +294,8 @@ public sealed class ConsoleWorkflow
         WriteLine("3. Export month to CSV");
         WriteLine("4. List all entries");
         WriteLine("5. Import entries from CSV");
-        WriteLine("6. Exit");
+        WriteLine("6. Edit category budget target");
+        WriteLine("7. Exit");
     }
 
     /// <summary>
@@ -394,6 +426,33 @@ public sealed class ConsoleWorkflow
             }
 
             WriteLine("Select one of the listed category numbers.");
+        }
+    }
+
+    /// <summary>
+    /// Reads a category selection from the configured target list.
+    /// </summary>
+    /// <param name="targets">The editable configured targets.</param>
+    /// <returns>The chosen target category.</returns>
+    private static string ReadTargetCategory(IReadOnlyList<CategoryBudgetTarget> targets)
+    {
+        while (true)
+        {
+            Write("Enter the category name to edit: ");
+            var input = System.Console.ReadLine()?.Trim();
+
+            if (!string.IsNullOrWhiteSpace(input))
+            {
+                var matchingTarget = targets.FirstOrDefault(target =>
+                    string.Equals(target.Category, input, StringComparison.OrdinalIgnoreCase));
+
+                if (matchingTarget is not null)
+                {
+                    return matchingTarget.Category;
+                }
+            }
+
+            WriteLine("Enter one of the listed category names.");
         }
     }
 

@@ -1,6 +1,6 @@
 # Budget Tracker Console App
 
-A .NET 8 console app for tracking configurable expense categories, saving data locally, checking category targets, tracking savings progress, reviewing month-end budget health, exporting monthly data to CSV files, previewing CSV imports before applying them, and now opening with a complete solution structure for app, core, and tests.
+A .NET 8 console app for tracking configurable expense categories, saving data locally, checking category targets, editing monthly budget targets, tracking savings progress, reviewing month-end budget health, exporting monthly data to CSV files, and previewing CSV imports before applying them.
 
 ## Stack
 - C# / .NET 8
@@ -22,7 +22,7 @@ No environment variables are required right now. See `.env.example`.
 
 ## Running Locally
 1. Run `dotnet run --project src/BudgetTracker.App`.
-2. Use the menu to add expenses, view a monthly report with target warnings, export CSV files, import CSV files, or list entries.
+2. Use the menu to add expenses, view a monthly report with target warnings, export CSV files, import CSV files, list entries, or edit monthly category targets.
 3. Run `dotnet run --project src/BudgetTracker.App -- --version` to print the app version.
 4. Re-run the app to confirm previous entries reload from `data/budget-entries.json`.
 
@@ -30,16 +30,16 @@ No environment variables are required right now. See `.env.example`.
 Not deployed. This is a local console application.
 
 ## Architecture Notes
-This version cleans up the repository’s solution structure so the `.sln` actually matches the real codebase instead of only pointing at tests. That sounds small, but it matters because solution-level restore, build, and test commands are now much more intuitive for anyone opening the repo in Visual Studio, VS Code, or CI tooling.
+This version makes the monthly budget targets editable from inside the console app instead of forcing you to hand-edit the JSON file every time a category budget changes. The change stays modular: the core service now owns target update validation and persistence, while the console layer just presents the current targets, asks which category to edit, and saves the new amount.
 
 ## Notes
 - Budget data is stored locally at `data/budget-entries.json` and that folder is ignored by Git.
 - Budget categories are checked into `src/BudgetTracker.App/Configuration/categories.json`.
 - Monthly category targets are checked into `src/BudgetTracker.App/Configuration/budget-targets.json`.
+- Monthly target edits update `src/BudgetTracker.App/Configuration/budget-targets.json` while preserving each target's evaluation mode.
 - Savings targets can use `"evaluationMode": "min-progress"` to behave like goals instead of overspend limits.
 - CSV exports are written to `exports/budget-export-yyyy-MM.csv` and that folder is ignored by Git.
 - CSV imports must use the header `Date,Category,Description,Amount`.
-- CSV imports now preview new rows and duplicates before anything is saved.
-- The solution file now includes the app, core library, and test project together.
+- CSV imports preview new rows and duplicates before anything is saved.
 - GitHub Actions CI restores dependencies, builds the console app, and runs the MSTest suite on every push and pull request.
 - Logging is structured to make later debugging and file-based logging easier.

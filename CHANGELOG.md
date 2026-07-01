@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.11.0] - 2026-07-01
+- Add a console workflow for editing configured monthly category targets.
+- Persist updated target amounts back to the JSON target configuration file.
+- Add automated tests for target update success and validation failures.
+
 ## [0.10.0] - 2026-07-01
 - Add the app and core projects to the solution file.
 - Make solution-level restore, build, and test commands align with the actual repository structure.

@@ -278,6 +278,51 @@ public sealed class BudgetTrackerServiceTests
     }
 
     /// <summary>
+    /// Confirms configured category targets can be updated and persisted.
+    /// </summary>
+    [TestMethod]
+    public void UpdateCategoryBudgetTarget_UpdatesExistingConfiguredTarget()
+    {
+        var service = CreateService(targets:
+        [
+            new CategoryBudgetTarget("Food", 75.00m),
+            new CategoryBudgetTarget("Savings", 60.00m, BudgetTargetEvaluationModes.MinProgress)
+        ]);
+
+        service.UpdateCategoryBudgetTarget("Food", 120.00m);
+
+        var targets = service.GetConfiguredBudgetTargets();
+
+        Assert.AreEqual(120.00m, targets.First(target => target.Category == "Food").MonthlyTarget);
+        Assert.AreEqual(BudgetTargetEvaluationModes.MinProgress, targets.First(target => target.Category == "Savings").EvaluationMode);
+    }
+
+    /// <summary>
+    /// Confirms updating an unknown target category is rejected.
+    /// </summary>
+    [TestMethod]
+    public void UpdateCategoryBudgetTarget_WithUnknownCategory_ThrowsArgumentException()
+    {
+        var service = CreateService();
+
+        Assert.Throws<ArgumentException>(() => service.UpdateCategoryBudgetTarget("Pet Care", 80.00m));
+    }
+
+    /// <summary>
+    /// Confirms updating a missing configured target is rejected.
+    /// </summary>
+    [TestMethod]
+    public void UpdateCategoryBudgetTarget_WhenConfiguredTargetIsMissing_ThrowsInvalidOperationException()
+    {
+        var service = CreateService(targets:
+        [
+            new CategoryBudgetTarget("Housing", 900.00m)
+        ]);
+
+        Assert.Throws<InvalidOperationException>(() => service.UpdateCategoryBudgetTarget("Food", 80.00m));
+    }
+
+    /// <summary>
     /// Creates a test-ready service instance.
     /// </summary>
     /// <returns>A configured budget tracker service.</returns>
@@ -337,7 +382,7 @@ public sealed class BudgetTrackerServiceTests
     /// </summary>
     private sealed class InMemoryCategoryBudgetTargetProvider : ICategoryBudgetTargetProvider
     {
-        private readonly IReadOnlyList<CategoryBudgetTarget> targets;
+        private List<CategoryBudgetTarget> targets;
 
         /// <summary>
         /// Initializes the in-memory target provider.
@@ -345,7 +390,7 @@ public sealed class BudgetTrackerServiceTests
         /// <param name="targets">Optional configured targets.</param>
         public InMemoryCategoryBudgetTargetProvider(IReadOnlyList<CategoryBudgetTarget>? targets = null)
         {
-            this.targets = targets ?? [];
+            this.targets = targets?.ToList() ?? [];
         }
 
         /// <summary>
@@ -354,7 +399,16 @@ public sealed class BudgetTrackerServiceTests
         /// <returns>The configured targets.</returns>
         public IReadOnlyList<CategoryBudgetTarget> LoadTargets()
         {
-            return targets;
+            return targets.ToList();
+        }
+
+        /// <summary>
+        /// Replaces the configured test targets.
+        /// </summary>
+        /// <param name="targets">The targets to persist.</param>
+        public void SaveTargets(IReadOnlyList<CategoryBudgetTarget> targets)
+        {
+            this.targets = targets.ToList();
         }
     }
 

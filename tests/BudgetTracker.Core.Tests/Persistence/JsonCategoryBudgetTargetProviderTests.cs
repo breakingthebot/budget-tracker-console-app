@@ -56,6 +56,28 @@ public sealed class JsonCategoryBudgetTargetProviderTests
     }
 
     /// <summary>
+    /// Saves targets and makes them available to a later load.
+    /// </summary>
+    [TestMethod]
+    public void SaveTargets_WithValidTargets_WritesReadableJson()
+    {
+        var filePath = CreateTempFilePath();
+        var provider = CreateProvider(filePath);
+
+        provider.SaveTargets(
+        [
+            new CategoryBudgetTarget("Food", 500m),
+            new CategoryBudgetTarget("Savings", 700m, BudgetTargetEvaluationModes.MinProgress)
+        ]);
+
+        var targets = provider.LoadTargets();
+
+        Assert.AreEqual(2, targets.Count);
+        Assert.AreEqual(500m, targets[0].MonthlyTarget);
+        Assert.AreEqual(BudgetTargetEvaluationModes.MinProgress, targets[1].EvaluationMode);
+    }
+
+    /// <summary>
     /// Rejects duplicate configured categories.
     /// </summary>
     [TestMethod]

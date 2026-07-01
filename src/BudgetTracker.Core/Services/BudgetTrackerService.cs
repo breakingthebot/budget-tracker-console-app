@@ -104,6 +104,71 @@ public sealed class BudgetTrackerService
     }
 
     /// <summary>
+    /// Returns the configured budget targets in category order.
+    /// </summary>
+    /// <returns>The configured category targets.</returns>
+    public IReadOnlyList<CategoryBudgetTarget> GetConfiguredBudgetTargets()
+    {
+        var configuredCategories = categoryDefinitionProvider.LoadCategories();
+        var targets = categoryBudgetTargetProvider.LoadTargets();
+        ValidateTargetsAgainstConfiguredCategories(configuredCategories, targets);
+
+        return targets
+            .OrderBy(target => configuredCategories.First(category =>
+                string.Equals(category.Name, target.Category, StringComparison.OrdinalIgnoreCase)).DisplayOrder)
+            .ThenBy(target => target.Category)
+            .ToList();
+    }
+
+    /// <summary>
+    /// Updates the monthly target amount for one configured category.
+    /// </summary>
+    /// <param name="category">The category whose target should change.</param>
+    /// <param name="monthlyTarget">The replacement monthly target amount.</param>
+    public void UpdateCategoryBudgetTarget(string category, decimal monthlyTarget)
+    {
+        if (string.IsNullOrWhiteSpace(category))
+        {
+            throw new ArgumentException("Category is required.", nameof(category));
+        }
+
+        if (monthlyTarget <= 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(monthlyTarget), "Monthly target must be greater than zero.");
+        }
+
+        var configuredCategories = categoryDefinitionProvider.LoadCategories();
+        var matchingCategory = configuredCategories.FirstOrDefault(item =>
+            string.Equals(item.Name, category, StringComparison.OrdinalIgnoreCase));
+
+        if (matchingCategory is null)
+        {
+            throw new ArgumentException($"Category '{category}' is not configured.", nameof(category));
+        }
+
+        var existingTargets = categoryBudgetTargetProvider.LoadTargets().ToList();
+        ValidateTargetsAgainstConfiguredCategories(configuredCategories, existingTargets);
+
+        var existingTargetIndex = existingTargets.FindIndex(target =>
+            string.Equals(target.Category, matchingCategory.Name, StringComparison.OrdinalIgnoreCase));
+
+        if (existingTargetIndex < 0)
+        {
+            throw new InvalidOperationException($"Category '{matchingCategory.Name}' does not have a configured budget target to edit.");
+        }
+
+        var existingTarget = existingTargets[existingTargetIndex];
+        existingTargets[existingTargetIndex] = existingTarget with
+        {
+            MonthlyTarget = monthlyTarget,
+            Category = matchingCategory.Name
+        };
+
+        categoryBudgetTargetProvider.SaveTargets(existingTargets);
+        logger.LogInfo("Category budget target updated.", new { Category = matchingCategory.Name, monthlyTarget });
+    }
+
+    /// <summary>
     /// Creates a monthly spending report.
     /// </summary>
     /// <param name="month">Any date inside the month to report.</param>
