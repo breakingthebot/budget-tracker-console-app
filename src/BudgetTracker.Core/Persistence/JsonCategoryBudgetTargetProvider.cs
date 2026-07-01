@@ -4,7 +4,6 @@
 // Created: 2026-07-01
 
 using System.Text.Json;
-using System.Text.Json.Serialization;
 using BudgetTracker.Core.Abstractions;
 using BudgetTracker.Core.Logging;
 using BudgetTracker.Core.Models;
@@ -18,8 +17,7 @@ public sealed class JsonCategoryBudgetTargetProvider : ICategoryBudgetTargetProv
 {
     private static readonly JsonSerializerOptions SerializerOptions = new()
     {
-        PropertyNameCaseInsensitive = true,
-        Converters = { new JsonStringEnumConverter() }
+        PropertyNameCaseInsensitive = true
     };
 
     private readonly string filePath;
@@ -76,7 +74,7 @@ public sealed class JsonCategoryBudgetTargetProvider : ICategoryBudgetTargetProv
     private static void ValidateTargets(IReadOnlyList<CategoryBudgetTarget> targets)
     {
         var duplicateCategories = targets
-            .GroupBy(target => target.Category)
+            .GroupBy(target => target.Category, StringComparer.OrdinalIgnoreCase)
             .Where(group => group.Count() > 1)
             .Select(group => group.Key)
             .ToList();
@@ -90,6 +88,11 @@ public sealed class JsonCategoryBudgetTargetProvider : ICategoryBudgetTargetProv
         if (targets.Any(target => target.MonthlyTarget <= 0))
         {
             throw new InvalidOperationException("Budget target configuration must use positive monthly target values.");
+        }
+
+        if (targets.Any(target => string.IsNullOrWhiteSpace(target.Category)))
+        {
+            throw new InvalidOperationException("Budget target configuration cannot contain blank category names.");
         }
     }
 }

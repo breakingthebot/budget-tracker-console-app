@@ -14,7 +14,7 @@ namespace BudgetTracker.Core.Models;
 /// <param name="Variance">The amount over or under target. Positive means over budget.</param>
 /// <param name="IsOverBudget">Indicates whether the category exceeded its target.</param>
 public sealed record CategoryBudgetStatus(
-    BudgetCategory Category,
+    string Category,
     decimal Spent,
     decimal Target,
     decimal Variance,

@@ -1,6 +1,6 @@
 # Budget Tracker Console App
 
-A .NET 8 console app for tracking categorized expenses, saving them locally, checking category targets, reviewing monthly spending, exporting monthly data to CSV files, and importing historical transactions from CSV.
+A .NET 8 console app for tracking configurable expense categories, saving data locally, checking category targets, reviewing monthly spending, exporting monthly data to CSV files, and importing historical transactions from CSV.
 
 ## Stack
 - C# / .NET 8
@@ -12,9 +12,10 @@ A .NET 8 console app for tracking categorized expenses, saving them locally, che
 2. Clone the repository.
 3. From the repository root, run `dotnet restore`.
 4. The app will create `data/budget-entries.json` automatically the first time you save an entry.
-5. Monthly category targets are loaded from `src/BudgetTracker.App/Configuration/budget-targets.json`.
-6. CSV exports are written to the local `exports` folder.
-7. GitHub Actions runs CI for pushes and pull requests.
+5. Budget categories are loaded from `src/BudgetTracker.App/Configuration/categories.json`.
+6. Monthly category targets are loaded from `src/BudgetTracker.App/Configuration/budget-targets.json`.
+7. CSV exports are written to the local `exports` folder.
+8. GitHub Actions runs CI for pushes and pull requests.
 
 ## Environment Variables
 No environment variables are required right now. See `.env.example`.
@@ -29,10 +30,11 @@ No environment variables are required right now. See `.env.example`.
 Not deployed. This is a local console application.
 
 ## Architecture Notes
-This version completes the CSV workflow in both directions by letting the app import historical transactions from files as well as export them. I split parsing from the main budget service so CSV-specific validation, header checks, and row-level errors live in one place, while the tracker service stays responsible for deduplicating imported rows and deciding what gets persisted.
+This version moves categories out of compiled C# code and into a checked-in JSON config file, which means you can add or rename categories without editing the core logic. I kept category loading and validation behind a provider so the rest of the app can treat categories as data, while the service layer still enforces that entries and targets only use configured category names.
 
 ## Notes
 - Budget data is stored locally at `data/budget-entries.json` and that folder is ignored by Git.
+- Budget categories are checked into `src/BudgetTracker.App/Configuration/categories.json`.
 - Monthly category targets are checked into `src/BudgetTracker.App/Configuration/budget-targets.json`.
 - CSV exports are written to `exports/budget-export-yyyy-MM.csv` and that folder is ignored by Git.
 - CSV imports must use the header `Date,Category,Description,Amount`.

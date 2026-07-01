@@ -314,13 +314,14 @@ public sealed class ConsoleWorkflow
     /// Reads a category selection from the user.
     /// </summary>
     /// <returns>The chosen category.</returns>
-    private static BudgetCategory ReadCategory()
+    private string ReadCategory()
     {
         WriteLine("Available categories:");
+        var categories = budgetTrackerService.GetConfiguredCategories();
 
-        foreach (var category in Enum.GetValues<BudgetCategory>())
+        foreach (var category in categories)
         {
-            WriteLine($"{(int)category}. {category}");
+            WriteLine($"{category.DisplayOrder}. {category.Name}");
         }
 
         while (true)
@@ -328,10 +329,14 @@ public sealed class ConsoleWorkflow
             Write("Select a category number: ");
             var input = System.Console.ReadLine();
 
-            if (int.TryParse(input, out var categoryNumber)
-                && Enum.IsDefined(typeof(BudgetCategory), categoryNumber))
+            if (int.TryParse(input, out var categoryNumber))
             {
-                return (BudgetCategory)categoryNumber;
+                var matchingCategory = categories.FirstOrDefault(category => category.DisplayOrder == categoryNumber);
+
+                if (matchingCategory is not null)
+                {
+                    return matchingCategory.Name;
+                }
             }
 
             WriteLine("Select one of the listed category numbers.");

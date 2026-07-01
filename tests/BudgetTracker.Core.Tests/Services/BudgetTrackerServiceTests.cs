@@ -24,7 +24,7 @@ public sealed class BudgetTrackerServiceTests
     {
         var service = CreateService();
 
-        service.AddEntry(new BudgetEntry(new DateOnly(2026, 7, 1), BudgetCategory.Food, "Groceries", 95.25m));
+        service.AddEntry(new BudgetEntry(new DateOnly(2026, 7, 1), "Food", "Groceries", 95.25m));
 
         var entries = service.GetEntries();
 
@@ -40,7 +40,7 @@ public sealed class BudgetTrackerServiceTests
     {
         var existingEntries = new List<BudgetEntry>
         {
-            new(new DateOnly(2026, 7, 1), BudgetCategory.Housing, "Rent", 1400.00m)
+            new(new DateOnly(2026, 7, 1), "Housing", "Rent", 1400.00m)
         };
 
         var service = CreateService(existingEntries);
@@ -59,21 +59,21 @@ public sealed class BudgetTrackerServiceTests
     {
         var service = CreateService(targets:
         [
-            new CategoryBudgetTarget(BudgetCategory.Food, 75.00m),
-            new CategoryBudgetTarget(BudgetCategory.Utilities, 100.00m)
+            new CategoryBudgetTarget("Food", 75.00m),
+            new CategoryBudgetTarget("Utilities", 100.00m)
         ]);
 
-        service.AddEntry(new BudgetEntry(new DateOnly(2026, 7, 1), BudgetCategory.Food, "Groceries", 40.00m));
-        service.AddEntry(new BudgetEntry(new DateOnly(2026, 7, 3), BudgetCategory.Food, "Lunch", 15.50m));
-        service.AddEntry(new BudgetEntry(new DateOnly(2026, 7, 5), BudgetCategory.Utilities, "Electricity", 70.00m));
-        service.AddEntry(new BudgetEntry(new DateOnly(2026, 8, 1), BudgetCategory.Food, "Next Month", 12.00m));
+        service.AddEntry(new BudgetEntry(new DateOnly(2026, 7, 1), "Food", "Groceries", 40.00m));
+        service.AddEntry(new BudgetEntry(new DateOnly(2026, 7, 3), "Food", "Lunch", 15.50m));
+        service.AddEntry(new BudgetEntry(new DateOnly(2026, 7, 5), "Utilities", "Electricity", 70.00m));
+        service.AddEntry(new BudgetEntry(new DateOnly(2026, 8, 1), "Food", "Next Month", 12.00m));
 
         var report = service.GetMonthlyReport(new DateOnly(2026, 7, 1));
 
         Assert.AreEqual(3, report.EntryCount);
         Assert.AreEqual(125.50m, report.TotalSpent);
         Assert.AreEqual(2, report.CategoryBreakdown.Count);
-        Assert.AreEqual(BudgetCategory.Utilities, report.CategoryBreakdown[0].Category);
+        Assert.AreEqual("Utilities", report.CategoryBreakdown[0].Category);
         Assert.AreEqual(70.00m, report.CategoryBreakdown[0].Total);
         Assert.AreEqual(0, report.OverBudgetCategoryCount);
     }
@@ -86,19 +86,19 @@ public sealed class BudgetTrackerServiceTests
     {
         var service = CreateService(targets:
         [
-            new CategoryBudgetTarget(BudgetCategory.Food, 50.00m),
-            new CategoryBudgetTarget(BudgetCategory.Utilities, 90.00m)
+            new CategoryBudgetTarget("Food", 50.00m),
+            new CategoryBudgetTarget("Utilities", 90.00m)
         ]);
 
-        service.AddEntry(new BudgetEntry(new DateOnly(2026, 7, 1), BudgetCategory.Food, "Groceries", 40.00m));
-        service.AddEntry(new BudgetEntry(new DateOnly(2026, 7, 3), BudgetCategory.Food, "Dinner", 25.00m));
-        service.AddEntry(new BudgetEntry(new DateOnly(2026, 7, 5), BudgetCategory.Utilities, "Internet", 65.00m));
+        service.AddEntry(new BudgetEntry(new DateOnly(2026, 7, 1), "Food", "Groceries", 40.00m));
+        service.AddEntry(new BudgetEntry(new DateOnly(2026, 7, 3), "Food", "Dinner", 25.00m));
+        service.AddEntry(new BudgetEntry(new DateOnly(2026, 7, 5), "Utilities", "Internet", 65.00m));
 
         var report = service.GetMonthlyReport(new DateOnly(2026, 7, 1));
 
         Assert.AreEqual(1, report.OverBudgetCategoryCount);
         Assert.AreEqual(2, report.CategoryBudgetStatuses.Count);
-        Assert.AreEqual(BudgetCategory.Food, report.CategoryBudgetStatuses[0].Category);
+        Assert.AreEqual("Food", report.CategoryBudgetStatuses[0].Category);
         Assert.IsTrue(report.CategoryBudgetStatuses[0].IsOverBudget);
         Assert.AreEqual(15.00m, report.CategoryBudgetStatuses[0].Variance);
         Assert.IsFalse(report.CategoryBudgetStatuses[1].IsOverBudget);
@@ -111,8 +111,8 @@ public sealed class BudgetTrackerServiceTests
     public void ExportMonthToCsv_ReturnsRequestedMonthEntries()
     {
         var service = CreateService();
-        service.AddEntry(new BudgetEntry(new DateOnly(2026, 7, 10), BudgetCategory.Entertainment, "Movie night", 24.00m));
-        service.AddEntry(new BudgetEntry(new DateOnly(2026, 8, 10), BudgetCategory.Entertainment, "Concert", 80.00m));
+        service.AddEntry(new BudgetEntry(new DateOnly(2026, 7, 10), "Entertainment", "Movie night", 24.00m));
+        service.AddEntry(new BudgetEntry(new DateOnly(2026, 8, 10), "Entertainment", "Concert", 80.00m));
 
         var csv = service.ExportMonthToCsv(new DateOnly(2026, 7, 1));
 
@@ -129,8 +129,8 @@ public sealed class BudgetTrackerServiceTests
         var service = CreateService();
         var filePath = Path.Combine(Path.GetTempPath(), "BudgetTrackerServiceTests", Guid.NewGuid().ToString("N"), "month.csv");
 
-        service.AddEntry(new BudgetEntry(new DateOnly(2026, 7, 10), BudgetCategory.Entertainment, "Movie night", 24.00m));
-        service.AddEntry(new BudgetEntry(new DateOnly(2026, 8, 10), BudgetCategory.Entertainment, "Concert", 80.00m));
+        service.AddEntry(new BudgetEntry(new DateOnly(2026, 7, 10), "Entertainment", "Movie night", 24.00m));
+        service.AddEntry(new BudgetEntry(new DateOnly(2026, 8, 10), "Entertainment", "Concert", 80.00m));
 
         var result = service.ExportMonthToCsvFile(new DateOnly(2026, 7, 1), filePath, overwriteExisting: false);
         var content = File.ReadAllText(filePath);
@@ -148,7 +148,7 @@ public sealed class BudgetTrackerServiceTests
     {
         var existingEntries = new List<BudgetEntry>
         {
-            new(new DateOnly(2026, 7, 10), BudgetCategory.Food, "Groceries", 45.50m)
+            new(new DateOnly(2026, 7, 10), "Food", "Groceries", 45.50m)
         };
 
         var service = CreateService(initialEntries: existingEntries);
@@ -179,7 +179,43 @@ public sealed class BudgetTrackerServiceTests
         var service = CreateService();
 
         Assert.Throws<ArgumentOutOfRangeException>(
-            () => service.AddEntry(new BudgetEntry(new DateOnly(2026, 7, 1), BudgetCategory.Food, "Invalid", 0m)));
+            () => service.AddEntry(new BudgetEntry(new DateOnly(2026, 7, 1), "Food", "Invalid", 0m)));
+    }
+
+    /// <summary>
+    /// Confirms a custom configured category works without code changes.
+    /// </summary>
+    [TestMethod]
+    public void AddEntry_WithCustomConfiguredCategory_StoresEntry()
+    {
+        var service = CreateService(categories:
+        [
+            new CategoryDefinition("Pet Care", 1),
+            new CategoryDefinition("Food", 2)
+        ]);
+
+        service.AddEntry(new BudgetEntry(new DateOnly(2026, 7, 1), "Pet Care", "Vet visit", 85.00m));
+
+        var entries = service.GetEntries();
+
+        Assert.AreEqual(1, entries.Count);
+        Assert.AreEqual("Pet Care", entries[0].Category);
+    }
+
+    /// <summary>
+    /// Confirms entries using unconfigured categories are rejected.
+    /// </summary>
+    [TestMethod]
+    public void AddEntry_WithUnconfiguredCategory_ThrowsArgumentException()
+    {
+        var service = CreateService(categories:
+        [
+            new CategoryDefinition("Housing", 1),
+            new CategoryDefinition("Food", 2)
+        ]);
+
+        Assert.Throws<ArgumentException>(
+            () => service.AddEntry(new BudgetEntry(new DateOnly(2026, 7, 1), "Pet Care", "Vet visit", 85.00m)));
     }
 
     /// <summary>
@@ -188,10 +224,12 @@ public sealed class BudgetTrackerServiceTests
     /// <returns>A configured budget tracker service.</returns>
     private static BudgetTrackerService CreateService(
         IReadOnlyList<BudgetEntry>? initialEntries = null,
-        IReadOnlyList<CategoryBudgetTarget>? targets = null)
+        IReadOnlyList<CategoryBudgetTarget>? targets = null,
+        IReadOnlyList<CategoryDefinition>? categories = null)
     {
         return new BudgetTrackerService(
             new InMemoryBudgetEntryStore(initialEntries),
+            new InMemoryCategoryDefinitionProvider(categories),
             new InMemoryCategoryBudgetTargetProvider(targets),
             new MonthlyReportBuilder(),
             new CsvExportService(),
@@ -258,6 +296,42 @@ public sealed class BudgetTrackerServiceTests
         public IReadOnlyList<CategoryBudgetTarget> LoadTargets()
         {
             return targets;
+        }
+    }
+
+    /// <summary>
+    /// Provides configured categories for tests.
+    /// </summary>
+    private sealed class InMemoryCategoryDefinitionProvider : ICategoryDefinitionProvider
+    {
+        private readonly IReadOnlyList<CategoryDefinition> categories;
+
+        /// <summary>
+        /// Initializes the in-memory category provider.
+        /// </summary>
+        /// <param name="categories">Optional configured categories.</param>
+        public InMemoryCategoryDefinitionProvider(IReadOnlyList<CategoryDefinition>? categories = null)
+        {
+            this.categories = categories ??
+            [
+                new CategoryDefinition("Housing", 1),
+                new CategoryDefinition("Food", 2),
+                new CategoryDefinition("Transportation", 3),
+                new CategoryDefinition("Utilities", 4),
+                new CategoryDefinition("Healthcare", 5),
+                new CategoryDefinition("Entertainment", 6),
+                new CategoryDefinition("Savings", 7),
+                new CategoryDefinition("Miscellaneous", 8)
+            ];
+        }
+
+        /// <summary>
+        /// Returns the configured test categories.
+        /// </summary>
+        /// <returns>The configured categories.</returns>
+        public IReadOnlyList<CategoryDefinition> LoadCategories()
+        {
+            return categories;
         }
     }
 }

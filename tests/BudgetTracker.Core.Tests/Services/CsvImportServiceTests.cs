@@ -27,7 +27,7 @@ public sealed class CsvImportServiceTests
             """
             Date,Category,Description,Amount
             2026-07-10,Food,Groceries,45.50
-            2026-07-11,Transportation,Train pass,12.00
+            2026-07-11,Transportation,"Train pass, monthly",12.00
             """);
 
         var service = CreateService();
@@ -35,7 +35,7 @@ public sealed class CsvImportServiceTests
         var entries = service.LoadEntries(filePath);
 
         Assert.AreEqual(2, entries.Count);
-        Assert.AreEqual("Groceries", entries[0].Description);
+        Assert.AreEqual("Train pass, monthly", entries[1].Description);
     }
 
     /// <summary>

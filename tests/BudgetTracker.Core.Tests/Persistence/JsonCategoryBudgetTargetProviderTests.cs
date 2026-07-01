@@ -37,7 +37,7 @@ public sealed class JsonCategoryBudgetTargetProviderTests
         var targets = provider.LoadTargets();
 
         Assert.AreEqual(2, targets.Count);
-        Assert.AreEqual(BudgetCategory.Food, targets[0].Category);
+        Assert.AreEqual("Food", targets[0].Category);
         Assert.AreEqual(450m, targets[0].MonthlyTarget);
     }
 

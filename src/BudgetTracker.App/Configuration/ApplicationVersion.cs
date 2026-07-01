@@ -13,5 +13,5 @@ public static class ApplicationVersion
     /// <summary>
     /// Gets the current application version.
     /// </summary>
-    public const string Current = "0.6.0";
+    public const string Current = "0.7.0";
 }

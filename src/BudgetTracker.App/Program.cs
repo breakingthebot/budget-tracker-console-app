@@ -20,12 +20,15 @@ if (args.Contains("--version", StringComparer.OrdinalIgnoreCase))
 logger.LogInfo("Starting budget tracker console application.", new { version = ApplicationVersion.Current });
 
 var dataFilePath = DataFilePathProvider.GetBudgetDataFilePath();
+var categoryFilePath = CategoryFilePathProvider.GetCategoryFilePath();
 var budgetTargetFilePath = BudgetTargetFilePathProvider.GetBudgetTargetFilePath();
 logger.LogInfo("Resolved budget data file path.", new { dataFilePath });
+logger.LogInfo("Resolved category file path.", new { categoryFilePath });
 logger.LogInfo("Resolved budget target file path.", new { budgetTargetFilePath });
 
 var budgetTrackerService = new BudgetTrackerService(
     new JsonBudgetEntryStore(dataFilePath, logger),
+    new JsonCategoryDefinitionProvider(categoryFilePath, logger),
     new JsonCategoryBudgetTargetProvider(budgetTargetFilePath, logger),
     new MonthlyReportBuilder(),
     new CsvExportService(),

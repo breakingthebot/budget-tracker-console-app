@@ -25,8 +25,8 @@ public sealed class JsonBudgetEntryStoreTests
         var store = CreateStore(filePath);
         var entries = new List<BudgetEntry>
         {
-            new(new DateOnly(2026, 7, 1), BudgetCategory.Food, "Groceries", 25.75m),
-            new(new DateOnly(2026, 7, 2), BudgetCategory.Transportation, "Train pass", 12.00m)
+            new(new DateOnly(2026, 7, 1), "Food", "Groceries", 25.75m),
+            new(new DateOnly(2026, 7, 2), "Transportation", "Train pass", 12.00m)
         };
 
         store.SaveEntries(entries);

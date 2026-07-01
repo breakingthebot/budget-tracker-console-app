@@ -85,9 +85,9 @@ public sealed class CsvImportService
     /// <returns>The parsed budget entry.</returns>
     private static BudgetEntry ParseLine(string line, int lineNumber)
     {
-        var columns = line.Split(',');
+        var columns = ParseColumns(line);
 
-        if (columns.Length != 4)
+        if (columns.Count != 4)
         {
             throw new InvalidOperationException($"Line {lineNumber} must contain exactly 4 comma-separated values.");
         }
@@ -97,9 +97,11 @@ public sealed class CsvImportService
             throw new InvalidOperationException($"Line {lineNumber} contains an invalid date.");
         }
 
-        if (!Enum.TryParse<BudgetCategory>(columns[1].Trim(), ignoreCase: true, out var category))
+        var category = columns[1].Trim();
+
+        if (string.IsNullOrWhiteSpace(category))
         {
-            throw new InvalidOperationException($"Line {lineNumber} contains an unknown category.");
+            throw new InvalidOperationException($"Line {lineNumber} must include a category.");
         }
 
         var description = columns[2].Trim();
@@ -115,6 +117,48 @@ public sealed class CsvImportService
         }
 
         return new BudgetEntry(date, category, description, amount);
+    }
+
+    /// <summary>
+    /// Parses CSV columns while honoring quoted values.
+    /// </summary>
+    /// <param name="line">The CSV line to parse.</param>
+    /// <returns>The parsed columns for the line.</returns>
+    private static IReadOnlyList<string> ParseColumns(string line)
+    {
+        var columns = new List<string>();
+        var current = new System.Text.StringBuilder();
+        var insideQuotes = false;
+
+        for (var index = 0; index < line.Length; index++)
+        {
+            var character = line[index];
+
+            if (character == '"')
+            {
+                if (insideQuotes && index + 1 < line.Length && line[index + 1] == '"')
+                {
+                    current.Append('"');
+                    index++;
+                    continue;
+                }
+
+                insideQuotes = !insideQuotes;
+                continue;
+            }
+
+            if (character == ',' && !insideQuotes)
+            {
+                columns.Add(current.ToString());
+                current.Clear();
+                continue;
+            }
+
+            current.Append(character);
+        }
+
+        columns.Add(current.ToString());
+        return columns;
     }
 
     /// <summary>

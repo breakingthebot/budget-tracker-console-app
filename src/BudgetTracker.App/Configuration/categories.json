@@ -1,0 +1,34 @@
+[
+  {
+    "name": "Housing",
+    "displayOrder": 1
+  },
+  {
+    "name": "Food",
+    "displayOrder": 2
+  },
+  {
+    "name": "Transportation",
+    "displayOrder": 3
+  },
+  {
+    "name": "Utilities",
+    "displayOrder": 4
+  },
+  {
+    "name": "Healthcare",
+    "displayOrder": 5
+  },
+  {
+    "name": "Entertainment",
+    "displayOrder": 6
+  },
+  {
+    "name": "Savings",
+    "displayOrder": 7
+  },
+  {
+    "name": "Miscellaneous",
+    "displayOrder": 8
+  }
+]

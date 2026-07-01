@@ -1,6 +1,6 @@
 // Services/BudgetTrackerService.cs
-// Validates, stores, reports, imports, and exports budget entries with persistence and target support.
-// Connects to: Models/BudgetEntry.cs, Models/CsvExportResult.cs, Models/CsvImportResult.cs, Abstractions/IBudgetEntryStore.cs, Abstractions/ICategoryBudgetTargetProvider.cs, Logging/StructuredConsoleLogger.cs, Services/MonthlyReportBuilder.cs, Services/CsvExportService.cs, Services/CsvExportFileService.cs, Services/CsvImportService.cs
+// Validates, stores, reports, imports, and exports budget entries with persistence and config-backed categories.
+// Connects to: Models/BudgetEntry.cs, Models/CategoryDefinition.cs, Models/CsvExportResult.cs, Models/CsvImportResult.cs, Abstractions/IBudgetEntryStore.cs, Abstractions/ICategoryDefinitionProvider.cs, Abstractions/ICategoryBudgetTargetProvider.cs, Logging/StructuredConsoleLogger.cs, Services/MonthlyReportBuilder.cs, Services/CsvExportService.cs, Services/CsvExportFileService.cs, Services/CsvImportService.cs
 // Created: 2026-07-01
 
 using BudgetTracker.Core.Abstractions;
@@ -16,6 +16,7 @@ public sealed class BudgetTrackerService
 {
     private readonly List<BudgetEntry> entries = [];
     private readonly IBudgetEntryStore budgetEntryStore;
+    private readonly ICategoryDefinitionProvider categoryDefinitionProvider;
     private readonly ICategoryBudgetTargetProvider categoryBudgetTargetProvider;
     private readonly MonthlyReportBuilder reportBuilder;
     private readonly CsvExportService csvExportService;
@@ -27,6 +28,7 @@ public sealed class BudgetTrackerService
     /// Initializes the budget tracker service.
     /// </summary>
     /// <param name="budgetEntryStore">Loads and saves tracked entries.</param>
+    /// <param name="categoryDefinitionProvider">Loads configured categories.</param>
     /// <param name="categoryBudgetTargetProvider">Loads configured category targets.</param>
     /// <param name="reportBuilder">Builds monthly reports.</param>
     /// <param name="csvExportService">Builds CSV export content.</param>
@@ -35,6 +37,7 @@ public sealed class BudgetTrackerService
     /// <param name="logger">Writes structured application logs.</param>
     public BudgetTrackerService(
         IBudgetEntryStore budgetEntryStore,
+        ICategoryDefinitionProvider categoryDefinitionProvider,
         ICategoryBudgetTargetProvider categoryBudgetTargetProvider,
         MonthlyReportBuilder reportBuilder,
         CsvExportService csvExportService,
@@ -43,6 +46,7 @@ public sealed class BudgetTrackerService
         StructuredConsoleLogger logger)
     {
         this.budgetEntryStore = budgetEntryStore;
+        this.categoryDefinitionProvider = categoryDefinitionProvider;
         this.categoryBudgetTargetProvider = categoryBudgetTargetProvider;
         this.reportBuilder = reportBuilder;
         this.csvExportService = csvExportService;
@@ -50,7 +54,14 @@ public sealed class BudgetTrackerService
         this.csvImportService = csvImportService;
         this.logger = logger;
 
+        var configuredCategories = categoryDefinitionProvider.LoadCategories();
         var storedEntries = budgetEntryStore.LoadEntries();
+
+        foreach (var entry in storedEntries)
+        {
+            ValidateEntry(entry, configuredCategories);
+        }
+
         entries.AddRange(storedEntries);
         this.logger.LogInfo("Budget tracker service initialized.", new { loadedEntryCount = entries.Count });
     }
@@ -61,7 +72,8 @@ public sealed class BudgetTrackerService
     /// <param name="entry">The candidate entry.</param>
     public void AddEntry(BudgetEntry entry)
     {
-        ValidateEntry(entry);
+        var configuredCategories = categoryDefinitionProvider.LoadCategories();
+        ValidateEntry(entry, configuredCategories);
         entries.Add(entry);
         budgetEntryStore.SaveEntries(entries);
 
@@ -83,6 +95,15 @@ public sealed class BudgetTrackerService
     }
 
     /// <summary>
+    /// Returns the configured categories in display order.
+    /// </summary>
+    /// <returns>The configured categories.</returns>
+    public IReadOnlyList<CategoryDefinition> GetConfiguredCategories()
+    {
+        return categoryDefinitionProvider.LoadCategories();
+    }
+
+    /// <summary>
     /// Creates a monthly spending report.
     /// </summary>
     /// <param name="month">Any date inside the month to report.</param>
@@ -90,8 +111,10 @@ public sealed class BudgetTrackerService
     public MonthlyReport GetMonthlyReport(DateOnly month)
     {
         logger.LogDebug("Building monthly report.", new { month = month.ToString("yyyy-MM") });
+        var configuredCategories = categoryDefinitionProvider.LoadCategories();
         var targets = categoryBudgetTargetProvider.LoadTargets();
-        return reportBuilder.Build(entries, month, targets);
+        ValidateTargetsAgainstConfiguredCategories(configuredCategories, targets);
+        return reportBuilder.Build(entries, month, configuredCategories, targets);
     }
 
     /// <summary>
@@ -136,13 +159,14 @@ public sealed class BudgetTrackerService
     public CsvImportResult ImportEntriesFromCsvFile(string filePath)
     {
         var importedEntries = csvImportService.LoadEntries(filePath);
+        var configuredCategories = categoryDefinitionProvider.LoadCategories();
         var existingEntries = new HashSet<BudgetEntry>(entries);
         var newEntries = new List<BudgetEntry>();
         var duplicateCount = 0;
 
         foreach (var entry in importedEntries)
         {
-            ValidateEntry(entry);
+            ValidateEntry(entry, configuredCategories);
 
             if (!existingEntries.Add(entry))
             {
@@ -167,7 +191,8 @@ public sealed class BudgetTrackerService
     /// Validates a budget entry before it is stored.
     /// </summary>
     /// <param name="entry">The entry to validate.</param>
-    private static void ValidateEntry(BudgetEntry entry)
+    /// <param name="configuredCategories">The configured categories used for validation.</param>
+    private static void ValidateEntry(BudgetEntry entry, IReadOnlyList<CategoryDefinition> configuredCategories)
     {
         if (entry.Amount <= 0)
         {
@@ -177,6 +202,43 @@ public sealed class BudgetTrackerService
         if (string.IsNullOrWhiteSpace(entry.Description))
         {
             throw new ArgumentException("Description is required.", nameof(entry));
+        }
+
+        if (string.IsNullOrWhiteSpace(entry.Category))
+        {
+            throw new ArgumentException("Category is required.", nameof(entry));
+        }
+
+        if (configuredCategories.Count > 0
+            && !configuredCategories.Any(category => string.Equals(category.Name, entry.Category, StringComparison.OrdinalIgnoreCase)))
+        {
+            throw new ArgumentException($"Category '{entry.Category}' is not configured.", nameof(entry));
+        }
+    }
+
+    /// <summary>
+    /// Validates configured targets against configured categories.
+    /// </summary>
+    /// <param name="configuredCategories">The configured categories.</param>
+    /// <param name="targets">The configured targets.</param>
+    private static void ValidateTargetsAgainstConfiguredCategories(
+        IReadOnlyList<CategoryDefinition> configuredCategories,
+        IReadOnlyList<CategoryBudgetTarget> targets)
+    {
+        var categoryNames = configuredCategories
+            .Select(category => category.Name)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        var unknownTargetCategories = targets
+            .Where(target => !categoryNames.Contains(target.Category))
+            .Select(target => target.Category)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        if (unknownTargetCategories.Count > 0)
+        {
+            throw new InvalidOperationException(
+                $"Budget target configuration contains unknown categories: {string.Join(", ", unknownTargetCategories)}.");
         }
     }
 }

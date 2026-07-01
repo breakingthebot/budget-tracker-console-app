@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.7.0] - 2026-07-01
+- Add config-driven category definitions from JSON.
+- Replace hard-coded category enums with validated configured category names.
+- Add automated tests for category config loading and unconfigured-category rejection.
+
 ## [0.6.0] - 2026-07-01
 - Add GitHub Actions CI for pushes and pull requests.
 - Build the console app and run the MSTest suite in the CI workflow.
