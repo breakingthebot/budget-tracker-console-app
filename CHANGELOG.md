@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.9.0] - 2026-07-01
+- Add CSV import preview and confirmation before persistence.
+- Show duplicate rows separately from new rows during import review.
+- Add automated tests for import preview classification behavior.
+
 ## [0.8.0] - 2026-07-01
 - Add month-end summary output for overall budget health.
 - Add dedicated savings-goal progress tracking using target evaluation modes.

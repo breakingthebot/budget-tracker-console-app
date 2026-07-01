@@ -200,6 +200,36 @@ public sealed class BudgetTrackerServiceTests
     }
 
     /// <summary>
+    /// Confirms import preview separates new rows from duplicates before persistence.
+    /// </summary>
+    [TestMethod]
+    public void PreviewImportFromCsvFile_ClassifiesNewAndDuplicateRows()
+    {
+        var existingEntries = new List<BudgetEntry>
+        {
+            new(new DateOnly(2026, 7, 10), "Food", "Groceries", 45.50m)
+        };
+
+        var service = CreateService(initialEntries: existingEntries);
+        var filePath = Path.Combine(Path.GetTempPath(), "BudgetTrackerServiceTests", Guid.NewGuid().ToString("N"), "preview.csv");
+        Directory.CreateDirectory(Path.GetDirectoryName(filePath)!);
+        File.WriteAllText(
+            filePath,
+            """
+            Date,Category,Description,Amount
+            2026-07-10,Food,Groceries,45.50
+            2026-07-11,Transportation,Train pass,12.00
+            """);
+
+        var preview = service.PreviewImportFromCsvFile(filePath);
+        var entries = service.GetEntries();
+
+        Assert.AreEqual(1, preview.NewEntries.Count);
+        Assert.AreEqual(1, preview.DuplicateEntries.Count);
+        Assert.AreEqual(1, entries.Count);
+    }
+
+    /// <summary>
     /// Confirms invalid entries are rejected.
     /// </summary>
     [TestMethod]

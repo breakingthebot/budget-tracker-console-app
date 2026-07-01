@@ -1,6 +1,6 @@
 // Services/BudgetTrackerService.cs
-// Validates, stores, reports, imports, and exports budget entries with persistence and config-backed categories.
-// Connects to: Models/BudgetEntry.cs, Models/CategoryDefinition.cs, Models/CsvExportResult.cs, Models/CsvImportResult.cs, Abstractions/IBudgetEntryStore.cs, Abstractions/ICategoryDefinitionProvider.cs, Abstractions/ICategoryBudgetTargetProvider.cs, Logging/StructuredConsoleLogger.cs, Services/MonthlyReportBuilder.cs, Services/CsvExportService.cs, Services/CsvExportFileService.cs, Services/CsvImportService.cs
+// Validates, stores, reports, previews imports, imports, and exports budget entries with persistence and config-backed categories.
+// Connects to: Models/BudgetEntry.cs, Models/CategoryDefinition.cs, Models/CsvExportResult.cs, Models/CsvImportPreview.cs, Models/CsvImportResult.cs, Abstractions/IBudgetEntryStore.cs, Abstractions/ICategoryDefinitionProvider.cs, Abstractions/ICategoryBudgetTargetProvider.cs, Logging/StructuredConsoleLogger.cs, Services/MonthlyReportBuilder.cs, Services/CsvExportService.cs, Services/CsvExportFileService.cs, Services/CsvImportService.cs
 // Created: 2026-07-01
 
 using BudgetTracker.Core.Abstractions;
@@ -152,39 +152,64 @@ public sealed class BudgetTrackerService
     }
 
     /// <summary>
-    /// Imports entries from a CSV file and persists new rows.
+    /// Previews entries from a CSV file before import.
     /// </summary>
-    /// <param name="filePath">The CSV file path to import.</param>
-    /// <returns>The completed import result.</returns>
-    public CsvImportResult ImportEntriesFromCsvFile(string filePath)
+    /// <param name="filePath">The CSV file path to preview.</param>
+    /// <returns>The preview result showing new and duplicate rows.</returns>
+    public CsvImportPreview PreviewImportFromCsvFile(string filePath)
     {
         var importedEntries = csvImportService.LoadEntries(filePath);
         var configuredCategories = categoryDefinitionProvider.LoadCategories();
         var existingEntries = new HashSet<BudgetEntry>(entries);
         var newEntries = new List<BudgetEntry>();
-        var duplicateCount = 0;
+        var duplicateEntries = new List<BudgetEntry>();
 
         foreach (var entry in importedEntries)
         {
             ValidateEntry(entry, configuredCategories);
 
-            if (!existingEntries.Add(entry))
+            if (existingEntries.Contains(entry))
             {
-                duplicateCount++;
+                duplicateEntries.Add(entry);
                 continue;
             }
 
             newEntries.Add(entry);
         }
 
-        entries.AddRange(newEntries);
+        logger.LogInfo(
+            "CSV import preview created.",
+            new { filePath, newCount = newEntries.Count, duplicateCount = duplicateEntries.Count });
+
+        return new CsvImportPreview(filePath, newEntries, duplicateEntries);
+    }
+
+    /// <summary>
+    /// Imports entries from a CSV preview and persists new rows.
+    /// </summary>
+    /// <param name="preview">The prepared import preview to apply.</param>
+    /// <returns>The completed import result.</returns>
+    public CsvImportResult ApplyImportPreview(CsvImportPreview preview)
+    {
+        entries.AddRange(preview.NewEntries);
         budgetEntryStore.SaveEntries(entries);
 
         logger.LogInfo(
             "CSV import completed.",
-            new { filePath, importedCount = newEntries.Count, duplicateCount });
+            new { filePath = preview.FilePath, importedCount = preview.NewEntries.Count, duplicateCount = preview.DuplicateEntries.Count });
 
-        return new CsvImportResult(filePath, newEntries.Count, duplicateCount);
+        return new CsvImportResult(preview.FilePath, preview.NewEntries.Count, preview.DuplicateEntries.Count);
+    }
+
+    /// <summary>
+    /// Imports entries from a CSV file and persists new rows.
+    /// </summary>
+    /// <param name="filePath">The CSV file path to import.</param>
+    /// <returns>The completed import result.</returns>
+    public CsvImportResult ImportEntriesFromCsvFile(string filePath)
+    {
+        var preview = PreviewImportFromCsvFile(filePath);
+        return ApplyImportPreview(preview);
     }
 
     /// <summary>

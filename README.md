@@ -1,6 +1,6 @@
 # Budget Tracker Console App
 
-A .NET 8 console app for tracking configurable expense categories, saving data locally, checking category targets, tracking savings progress, reviewing month-end budget health, exporting monthly data to CSV files, and importing historical transactions from CSV.
+A .NET 8 console app for tracking configurable expense categories, saving data locally, checking category targets, tracking savings progress, reviewing month-end budget health, exporting monthly data to CSV files, and previewing CSV imports before applying them.
 
 ## Stack
 - C# / .NET 8
@@ -30,7 +30,7 @@ No environment variables are required right now. See `.env.example`.
 Not deployed. This is a local console application.
 
 ## Architecture Notes
-This version adds a real month-end readout on top of the existing category target logic, including dedicated savings-goal progress instead of treating savings like a normal overspend category. I kept that behavior data-driven by extending target configuration with evaluation modes, so the report builder can distinguish between “stay under this amount” and “work toward this goal” without hard-coding one-off logic into the console flow.
+This version makes CSV import safer by splitting it into preview and apply steps instead of immediately writing parsed rows into storage. The parser still handles validation and duplicate detection, but now the console workflow shows users what will be imported or skipped first, which keeps the storage mutation behind an explicit confirmation step.
 
 ## Notes
 - Budget data is stored locally at `data/budget-entries.json` and that folder is ignored by Git.
@@ -39,5 +39,6 @@ This version adds a real month-end readout on top of the existing category targe
 - Savings targets can use `"evaluationMode": "min-progress"` to behave like goals instead of overspend limits.
 - CSV exports are written to `exports/budget-export-yyyy-MM.csv` and that folder is ignored by Git.
 - CSV imports must use the header `Date,Category,Description,Amount`.
+- CSV imports now preview new rows and duplicates before anything is saved.
 - GitHub Actions CI restores dependencies, builds the console app, and runs the MSTest suite on every push and pull request.
 - Logging is structured to make later debugging and file-based logging easier.

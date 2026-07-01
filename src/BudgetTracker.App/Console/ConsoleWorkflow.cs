@@ -196,7 +196,45 @@ public sealed class ConsoleWorkflow
     private bool RunCsvImport()
     {
         var filePath = ReadRequiredString("Enter the CSV file path to import");
-        var result = budgetTrackerService.ImportEntriesFromCsvFile(filePath);
+        var preview = budgetTrackerService.PreviewImportFromCsvFile(filePath);
+
+        WriteLine($"Import preview for: {preview.FilePath}");
+        WriteLine($"Rows to import: {preview.NewEntries.Count}");
+        WriteLine($"Duplicate rows to skip: {preview.DuplicateEntries.Count}");
+
+        if (preview.NewEntries.Count > 0)
+        {
+            WriteLine("New rows:");
+
+            foreach (var entry in preview.NewEntries.Take(5))
+            {
+                WriteLine($"- {entry.Date:yyyy-MM-dd} | {entry.Category} | {entry.Description} | ${entry.Amount:0.00}");
+            }
+        }
+
+        if (preview.DuplicateEntries.Count > 0)
+        {
+            WriteLine("Duplicate rows:");
+
+            foreach (var entry in preview.DuplicateEntries.Take(5))
+            {
+                WriteLine($"- {entry.Date:yyyy-MM-dd} | {entry.Category} | {entry.Description} | ${entry.Amount:0.00}");
+            }
+        }
+
+        if (preview.NewEntries.Count == 0)
+        {
+            WriteLine("No new rows to import.");
+            return true;
+        }
+
+        if (!ReadConfirmation("Apply this import"))
+        {
+            WriteLine("Import cancelled.");
+            return true;
+        }
+
+        var result = budgetTrackerService.ApplyImportPreview(preview);
 
         WriteLine($"Imported entries: {result.ImportedCount}");
         WriteLine($"Skipped duplicates: {result.DuplicateCount}");
