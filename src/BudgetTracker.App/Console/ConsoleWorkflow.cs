@@ -99,6 +99,7 @@ public sealed class ConsoleWorkflow
         WriteLine($"Monthly report for {report.Month:yyyy-MM}");
         WriteLine($"Entries: {report.EntryCount}");
         WriteLine($"Total spent: ${report.TotalSpent:0.00}");
+        WriteLine($"Over-budget categories: {report.OverBudgetCategoryCount}");
 
         if (report.CategoryBreakdown.Count == 0)
         {
@@ -109,6 +110,19 @@ public sealed class ConsoleWorkflow
         foreach (var item in report.CategoryBreakdown)
         {
             WriteLine($"- {item.Category}: ${item.Total:0.00}");
+        }
+
+        WriteLine("Budget target status:");
+
+        foreach (var status in report.CategoryBudgetStatuses)
+        {
+            var statusLabel = status.IsOverBudget ? "OVER" : "OK";
+            var varianceLabel = status.Variance > 0
+                ? $"+${status.Variance:0.00}"
+                : $"-${Math.Abs(status.Variance):0.00}";
+
+            WriteLine(
+                $"- {status.Category}: spent ${status.Spent:0.00} vs target ${status.Target:0.00} ({statusLabel} {varianceLabel})");
         }
 
         return true;

@@ -1,6 +1,6 @@
 // Services/MonthlyReportBuilder.cs
-// Builds monthly spending summaries from a set of budget entries.
-// Connects to: Models/BudgetEntry.cs, Models/CategorySpend.cs, Models/MonthlyReport.cs
+// Builds monthly spending summaries and target comparisons from a set of budget entries.
+// Connects to: Models/BudgetEntry.cs, Models/CategorySpend.cs, Models/CategoryBudgetTarget.cs, Models/CategoryBudgetStatus.cs, Models/MonthlyReport.cs
 // Created: 2026-07-01
 
 using BudgetTracker.Core.Models;
@@ -17,8 +17,9 @@ public sealed class MonthlyReportBuilder
     /// </summary>
     /// <param name="entries">All available entries.</param>
     /// <param name="month">Any date within the month to summarize.</param>
+    /// <param name="targets">The configured category targets.</param>
     /// <returns>A report with totals and category breakdown.</returns>
-    public MonthlyReport Build(IEnumerable<BudgetEntry> entries, DateOnly month)
+    public MonthlyReport Build(IEnumerable<BudgetEntry> entries, DateOnly month, IEnumerable<CategoryBudgetTarget> targets)
     {
         var normalizedMonth = new DateOnly(month.Year, month.Month, 1);
         var monthlyEntries = entries
@@ -32,10 +33,30 @@ public sealed class MonthlyReportBuilder
             .ThenBy(item => item.Category)
             .ToList();
 
+        var spendByCategory = categoryBreakdown.ToDictionary(item => item.Category, item => item.Total);
+        var categoryBudgetStatuses = targets
+            .Select(target =>
+            {
+                var spent = spendByCategory.GetValueOrDefault(target.Category, 0m);
+                var variance = spent - target.MonthlyTarget;
+                return new CategoryBudgetStatus(
+                    target.Category,
+                    spent,
+                    target.MonthlyTarget,
+                    variance,
+                    variance > 0);
+            })
+            .OrderByDescending(item => item.IsOverBudget)
+            .ThenByDescending(item => Math.Abs(item.Variance))
+            .ThenBy(item => item.Category)
+            .ToList();
+
         return new MonthlyReport(
             normalizedMonth,
             monthlyEntries.Sum(entry => entry.Amount),
             monthlyEntries.Count,
-            categoryBreakdown);
+            categoryBreakdown,
+            categoryBudgetStatuses,
+            categoryBudgetStatuses.Count(item => item.IsOverBudget));
     }
 }

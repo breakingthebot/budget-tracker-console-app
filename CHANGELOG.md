@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.3.0] - 2026-07-01
+- Add config-driven monthly category targets from JSON.
+- Add over-budget reporting to the monthly report output.
+- Add automated tests for target loading and over-budget status calculation.
+
 ## [0.2.0] - 2026-07-01
 - Add JSON persistence so tracked entries survive between app runs.
 - Add storage-path status output in the console workflow.

@@ -1,0 +1,34 @@
+[
+  {
+    "category": "Housing",
+    "monthlyTarget": 1600
+  },
+  {
+    "category": "Food",
+    "monthlyTarget": 500
+  },
+  {
+    "category": "Transportation",
+    "monthlyTarget": 250
+  },
+  {
+    "category": "Utilities",
+    "monthlyTarget": 300
+  },
+  {
+    "category": "Healthcare",
+    "monthlyTarget": 200
+  },
+  {
+    "category": "Entertainment",
+    "monthlyTarget": 150
+  },
+  {
+    "category": "Savings",
+    "monthlyTarget": 600
+  },
+  {
+    "category": "Miscellaneous",
+    "monthlyTarget": 175
+  }
+]

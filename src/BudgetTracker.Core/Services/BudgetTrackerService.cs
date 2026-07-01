@@ -1,6 +1,6 @@
 // Services/BudgetTrackerService.cs
-// Validates, stores, reports, and exports budget entries with persistence support.
-// Connects to: Models/BudgetEntry.cs, Abstractions/IBudgetEntryStore.cs, Logging/StructuredConsoleLogger.cs, Services/MonthlyReportBuilder.cs, Services/CsvExportService.cs
+// Validates, stores, reports, and exports budget entries with persistence and target support.
+// Connects to: Models/BudgetEntry.cs, Abstractions/IBudgetEntryStore.cs, Abstractions/ICategoryBudgetTargetProvider.cs, Logging/StructuredConsoleLogger.cs, Services/MonthlyReportBuilder.cs, Services/CsvExportService.cs
 // Created: 2026-07-01
 
 using BudgetTracker.Core.Abstractions;
@@ -16,6 +16,7 @@ public sealed class BudgetTrackerService
 {
     private readonly List<BudgetEntry> entries = [];
     private readonly IBudgetEntryStore budgetEntryStore;
+    private readonly ICategoryBudgetTargetProvider categoryBudgetTargetProvider;
     private readonly MonthlyReportBuilder reportBuilder;
     private readonly CsvExportService csvExportService;
     private readonly StructuredConsoleLogger logger;
@@ -24,16 +25,19 @@ public sealed class BudgetTrackerService
     /// Initializes the budget tracker service.
     /// </summary>
     /// <param name="budgetEntryStore">Loads and saves tracked entries.</param>
+    /// <param name="categoryBudgetTargetProvider">Loads configured category targets.</param>
     /// <param name="reportBuilder">Builds monthly reports.</param>
     /// <param name="csvExportService">Builds CSV export content.</param>
     /// <param name="logger">Writes structured application logs.</param>
     public BudgetTrackerService(
         IBudgetEntryStore budgetEntryStore,
+        ICategoryBudgetTargetProvider categoryBudgetTargetProvider,
         MonthlyReportBuilder reportBuilder,
         CsvExportService csvExportService,
         StructuredConsoleLogger logger)
     {
         this.budgetEntryStore = budgetEntryStore;
+        this.categoryBudgetTargetProvider = categoryBudgetTargetProvider;
         this.reportBuilder = reportBuilder;
         this.csvExportService = csvExportService;
         this.logger = logger;
@@ -78,7 +82,8 @@ public sealed class BudgetTrackerService
     public MonthlyReport GetMonthlyReport(DateOnly month)
     {
         logger.LogDebug("Building monthly report.", new { month = month.ToString("yyyy-MM") });
-        return reportBuilder.Build(entries, month);
+        var targets = categoryBudgetTargetProvider.LoadTargets();
+        return reportBuilder.Build(entries, month, targets);
     }
 
     /// <summary>

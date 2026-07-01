@@ -1,6 +1,6 @@
 // Services/BudgetTrackerServiceTests.cs
-// Verifies entry validation, monthly report generation, and CSV export behavior.
-// Connects to: Core/Services/BudgetTrackerService.cs, Core/Models/*
+// Verifies entry validation, monthly report generation, budget warnings, and CSV export behavior.
+// Connects to: Core/Services/BudgetTrackerService.cs, Core/Models/*, Core/Abstractions/*
 // Created: 2026-07-01
 
 using BudgetTracker.Core.Logging;
@@ -57,7 +57,12 @@ public sealed class BudgetTrackerServiceTests
     [TestMethod]
     public void GetMonthlyReport_ReturnsCategoryBreakdownAndTotals()
     {
-        var service = CreateService();
+        var service = CreateService(targets:
+        [
+            new CategoryBudgetTarget(BudgetCategory.Food, 75.00m),
+            new CategoryBudgetTarget(BudgetCategory.Utilities, 100.00m)
+        ]);
+
         service.AddEntry(new BudgetEntry(new DateOnly(2026, 7, 1), BudgetCategory.Food, "Groceries", 40.00m));
         service.AddEntry(new BudgetEntry(new DateOnly(2026, 7, 3), BudgetCategory.Food, "Lunch", 15.50m));
         service.AddEntry(new BudgetEntry(new DateOnly(2026, 7, 5), BudgetCategory.Utilities, "Electricity", 70.00m));
@@ -70,6 +75,33 @@ public sealed class BudgetTrackerServiceTests
         Assert.AreEqual(2, report.CategoryBreakdown.Count);
         Assert.AreEqual(BudgetCategory.Utilities, report.CategoryBreakdown[0].Category);
         Assert.AreEqual(70.00m, report.CategoryBreakdown[0].Total);
+        Assert.AreEqual(0, report.OverBudgetCategoryCount);
+    }
+
+    /// <summary>
+    /// Confirms monthly reports flag categories that exceed their targets.
+    /// </summary>
+    [TestMethod]
+    public void GetMonthlyReport_ReturnsOverBudgetStatuses()
+    {
+        var service = CreateService(targets:
+        [
+            new CategoryBudgetTarget(BudgetCategory.Food, 50.00m),
+            new CategoryBudgetTarget(BudgetCategory.Utilities, 90.00m)
+        ]);
+
+        service.AddEntry(new BudgetEntry(new DateOnly(2026, 7, 1), BudgetCategory.Food, "Groceries", 40.00m));
+        service.AddEntry(new BudgetEntry(new DateOnly(2026, 7, 3), BudgetCategory.Food, "Dinner", 25.00m));
+        service.AddEntry(new BudgetEntry(new DateOnly(2026, 7, 5), BudgetCategory.Utilities, "Internet", 65.00m));
+
+        var report = service.GetMonthlyReport(new DateOnly(2026, 7, 1));
+
+        Assert.AreEqual(1, report.OverBudgetCategoryCount);
+        Assert.AreEqual(2, report.CategoryBudgetStatuses.Count);
+        Assert.AreEqual(BudgetCategory.Food, report.CategoryBudgetStatuses[0].Category);
+        Assert.IsTrue(report.CategoryBudgetStatuses[0].IsOverBudget);
+        Assert.AreEqual(15.00m, report.CategoryBudgetStatuses[0].Variance);
+        Assert.IsFalse(report.CategoryBudgetStatuses[1].IsOverBudget);
     }
 
     /// <summary>
@@ -104,10 +136,13 @@ public sealed class BudgetTrackerServiceTests
     /// Creates a test-ready service instance.
     /// </summary>
     /// <returns>A configured budget tracker service.</returns>
-    private static BudgetTrackerService CreateService(IReadOnlyList<BudgetEntry>? initialEntries = null)
+    private static BudgetTrackerService CreateService(
+        IReadOnlyList<BudgetEntry>? initialEntries = null,
+        IReadOnlyList<CategoryBudgetTarget>? targets = null)
     {
         return new BudgetTrackerService(
             new InMemoryBudgetEntryStore(initialEntries),
+            new InMemoryCategoryBudgetTargetProvider(targets),
             new MonthlyReportBuilder(),
             new CsvExportService(),
             new StructuredConsoleLogger());
@@ -145,6 +180,32 @@ public sealed class BudgetTrackerServiceTests
         public void SaveEntries(IReadOnlyList<BudgetEntry> entries)
         {
             storedEntries = entries.ToList();
+        }
+    }
+
+    /// <summary>
+    /// Provides configured category targets for tests.
+    /// </summary>
+    private sealed class InMemoryCategoryBudgetTargetProvider : ICategoryBudgetTargetProvider
+    {
+        private readonly IReadOnlyList<CategoryBudgetTarget> targets;
+
+        /// <summary>
+        /// Initializes the in-memory target provider.
+        /// </summary>
+        /// <param name="targets">Optional configured targets.</param>
+        public InMemoryCategoryBudgetTargetProvider(IReadOnlyList<CategoryBudgetTarget>? targets = null)
+        {
+            this.targets = targets ?? [];
+        }
+
+        /// <summary>
+        /// Returns the configured test targets.
+        /// </summary>
+        /// <returns>The configured targets.</returns>
+        public IReadOnlyList<CategoryBudgetTarget> LoadTargets()
+        {
+            return targets;
         }
     }
 }
