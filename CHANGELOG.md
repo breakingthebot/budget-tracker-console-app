@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.6.0] - 2026-07-01
+- Add GitHub Actions CI for pushes and pull requests.
+- Build the console app and run the MSTest suite in the CI workflow.
+- Document the automated CI workflow in the project README.
+
 ## [0.5.0] - 2026-07-01
 - Add CSV import support for historical transactions.
 - Add duplicate skipping when imported rows already exist in tracked data.

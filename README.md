@@ -14,6 +14,7 @@ A .NET 8 console app for tracking categorized expenses, saving them locally, che
 4. The app will create `data/budget-entries.json` automatically the first time you save an entry.
 5. Monthly category targets are loaded from `src/BudgetTracker.App/Configuration/budget-targets.json`.
 6. CSV exports are written to the local `exports` folder.
+7. GitHub Actions runs CI for pushes and pull requests.
 
 ## Environment Variables
 No environment variables are required right now. See `.env.example`.
@@ -35,4 +36,5 @@ This version completes the CSV workflow in both directions by letting the app im
 - Monthly category targets are checked into `src/BudgetTracker.App/Configuration/budget-targets.json`.
 - CSV exports are written to `exports/budget-export-yyyy-MM.csv` and that folder is ignored by Git.
 - CSV imports must use the header `Date,Category,Description,Amount`.
+- GitHub Actions CI restores dependencies, builds the console app, and runs the MSTest suite on every push and pull request.
 - Logging is structured to make later debugging and file-based logging easier.

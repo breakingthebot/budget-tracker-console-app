@@ -1,0 +1,36 @@
+# .github/workflows/ci.yml
+# Runs continuous integration checks for the budget tracker repository.
+# Connects to: budget-tracker-console-app.sln, src/BudgetTracker.App/BudgetTracker.App.csproj, tests/BudgetTracker.Core.Tests/BudgetTracker.Core.Tests.csproj
+# Created: 2026-07-01
+
+name: .NET CI
+
+on:
+  push:
+    branches:
+      - '**'
+  pull_request:
+    branches:
+      - '**'
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Restore test solution
+        run: dotnet restore budget-tracker-console-app.sln
+
+      - name: Build console application
+        run: dotnet build src/BudgetTracker.App/BudgetTracker.App.csproj --configuration Release --no-restore
+
+      - name: Run automated tests
+        run: dotnet test tests/BudgetTracker.Core.Tests/BudgetTracker.Core.Tests.csproj --configuration Release
