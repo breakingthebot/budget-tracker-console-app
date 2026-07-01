@@ -29,6 +29,9 @@ jobs:
       - name: Restore test solution
         run: dotnet restore budget-tracker-console-app.sln
 
+      - name: Restore console application
+        run: dotnet restore src/BudgetTracker.App/BudgetTracker.App.csproj
+
       - name: Build console application
         run: dotnet build src/BudgetTracker.App/BudgetTracker.App.csproj --configuration Release --no-restore
 
