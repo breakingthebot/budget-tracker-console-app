@@ -7,6 +7,12 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{0E109E7A
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BudgetTracker.Core.Tests", "tests\BudgetTracker.Core.Tests\BudgetTracker.Core.Tests.csproj", "{E1DC1F92-10DC-423F-9B49-3B2229864ED5}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{656ED327-9B92-4A7E-B7A3-47C0DA609133}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BudgetTracker.App", "src\BudgetTracker.App\BudgetTracker.App.csproj", "{DD386CB9-0DA0-4B3E-8467-9D3FA9313A84}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BudgetTracker.Core", "src\BudgetTracker.Core\BudgetTracker.Core.csproj", "{9CEC4D0B-24A3-4B99-8540-2073549ECEDC}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -20,8 +26,18 @@ Global
 		{E1DC1F92-10DC-423F-9B49-3B2229864ED5}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{E1DC1F92-10DC-423F-9B49-3B2229864ED5}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{E1DC1F92-10DC-423F-9B49-3B2229864ED5}.Release|Any CPU.Build.0 = Release|Any CPU
+		{DD386CB9-0DA0-4B3E-8467-9D3FA9313A84}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{DD386CB9-0DA0-4B3E-8467-9D3FA9313A84}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{DD386CB9-0DA0-4B3E-8467-9D3FA9313A84}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{DD386CB9-0DA0-4B3E-8467-9D3FA9313A84}.Release|Any CPU.Build.0 = Release|Any CPU
+		{9CEC4D0B-24A3-4B99-8540-2073549ECEDC}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{9CEC4D0B-24A3-4B99-8540-2073549ECEDC}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{9CEC4D0B-24A3-4B99-8540-2073549ECEDC}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{9CEC4D0B-24A3-4B99-8540-2073549ECEDC}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
 		{E1DC1F92-10DC-423F-9B49-3B2229864ED5} = {0E109E7A-5326-4845-8ED0-35B7ACFDE94B}
+		{DD386CB9-0DA0-4B3E-8467-9D3FA9313A84} = {656ED327-9B92-4A7E-B7A3-47C0DA609133}
+		{9CEC4D0B-24A3-4B99-8540-2073549ECEDC} = {656ED327-9B92-4A7E-B7A3-47C0DA609133}
 	EndGlobalSection
 EndGlobal

@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.10.0] - 2026-07-01
+- Add the app and core projects to the solution file.
+- Make solution-level restore, build, and test commands align with the actual repository structure.
+- Document the solution cleanup and bump the application version.
+
 ## [0.9.0] - 2026-07-01
 - Add CSV import preview and confirmation before persistence.
 - Show duplicate rows separately from new rows during import review.

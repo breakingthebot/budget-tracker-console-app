@@ -1,6 +1,6 @@
 # Budget Tracker Console App
 
-A .NET 8 console app for tracking configurable expense categories, saving data locally, checking category targets, tracking savings progress, reviewing month-end budget health, exporting monthly data to CSV files, and previewing CSV imports before applying them.
+A .NET 8 console app for tracking configurable expense categories, saving data locally, checking category targets, tracking savings progress, reviewing month-end budget health, exporting monthly data to CSV files, previewing CSV imports before applying them, and now opening with a complete solution structure for app, core, and tests.
 
 ## Stack
 - C# / .NET 8
@@ -30,7 +30,7 @@ No environment variables are required right now. See `.env.example`.
 Not deployed. This is a local console application.
 
 ## Architecture Notes
-This version makes CSV import safer by splitting it into preview and apply steps instead of immediately writing parsed rows into storage. The parser still handles validation and duplicate detection, but now the console workflow shows users what will be imported or skipped first, which keeps the storage mutation behind an explicit confirmation step.
+This version cleans up the repository’s solution structure so the `.sln` actually matches the real codebase instead of only pointing at tests. That sounds small, but it matters because solution-level restore, build, and test commands are now much more intuitive for anyone opening the repo in Visual Studio, VS Code, or CI tooling.
 
 ## Notes
 - Budget data is stored locally at `data/budget-entries.json` and that folder is ignored by Git.
@@ -40,5 +40,6 @@ This version makes CSV import safer by splitting it into preview and apply steps
 - CSV exports are written to `exports/budget-export-yyyy-MM.csv` and that folder is ignored by Git.
 - CSV imports must use the header `Date,Category,Description,Amount`.
 - CSV imports now preview new rows and duplicates before anything is saved.
+- The solution file now includes the app, core library, and test project together.
 - GitHub Actions CI restores dependencies, builds the console app, and runs the MSTest suite on every push and pull request.
 - Logging is structured to make later debugging and file-based logging easier.
