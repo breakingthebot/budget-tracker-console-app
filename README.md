@@ -1,6 +1,6 @@
 # Budget Tracker Console App
 
-A .NET 8 console app for tracking categorized expenses, saving them locally, checking category targets, reviewing monthly spending, and exporting monthly data as CSV.
+A .NET 8 console app for tracking categorized expenses, saving them locally, checking category targets, reviewing monthly spending, and exporting monthly data to CSV files.
 
 ## Stack
 - C# / .NET 8
@@ -13,13 +13,14 @@ A .NET 8 console app for tracking categorized expenses, saving them locally, che
 3. From the repository root, run `dotnet restore`.
 4. The app will create `data/budget-entries.json` automatically the first time you save an entry.
 5. Monthly category targets are loaded from `src/BudgetTracker.App/Configuration/budget-targets.json`.
+6. CSV exports are written to the local `exports` folder.
 
 ## Environment Variables
 No environment variables are required right now. See `.env.example`.
 
 ## Running Locally
 1. Run `dotnet run --project src/BudgetTracker.App`.
-2. Use the menu to add expenses, view a monthly report with target warnings, export CSV, or list entries.
+2. Use the menu to add expenses, view a monthly report with target warnings, export CSV files, or list entries.
 3. Run `dotnet run --project src/BudgetTracker.App -- --version` to print the app version.
 4. Re-run the app to confirm previous entries reload from `data/budget-entries.json`.
 
@@ -27,9 +28,10 @@ No environment variables are required right now. See `.env.example`.
 Not deployed. This is a local console application.
 
 ## Architecture Notes
-This version makes the reports more useful by comparing real spending against configured category targets, not just listing totals. I kept those targets in a dedicated JSON config file and loaded them through a provider abstraction so the report logic can evaluate budgets without baking one storage format or one fixed set of limits into the core service layer.
+This version makes the export workflow practical by writing real CSV files into a predictable local folder instead of dumping CSV to the terminal. I kept the text generation and file-writing concerns separate, so the core export format stays reusable while the file service handles overwrite checks and directory creation in one place.
 
 ## Notes
 - Budget data is stored locally at `data/budget-entries.json` and that folder is ignored by Git.
 - Monthly category targets are checked into `src/BudgetTracker.App/Configuration/budget-targets.json`.
+- CSV exports are written to `exports/budget-export-yyyy-MM.csv` and that folder is ignored by Git.
 - Logging is structured to make later debugging and file-based logging easier.

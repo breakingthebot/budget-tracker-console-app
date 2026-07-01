@@ -6,6 +6,7 @@
 using BudgetTracker.Core.Logging;
 using BudgetTracker.Core.Models;
 using BudgetTracker.Core.Services;
+using BudgetTracker.App.Configuration;
 
 namespace BudgetTracker.App.Console;
 
@@ -135,9 +136,17 @@ public sealed class ConsoleWorkflow
     private bool RunCsvExport()
     {
         var month = ReadMonth("Enter export month (yyyy-mm)");
-        var csv = budgetTrackerService.ExportMonthToCsv(month);
-        WriteLine("CSV export:");
-        WriteLine(csv);
+        var filePath = ExportFilePathProvider.GetMonthlyExportFilePath(month);
+        var overwriteExisting = false;
+
+        if (File.Exists(filePath))
+        {
+            overwriteExisting = ReadConfirmation($"Export file already exists at {filePath}. Overwrite it");
+        }
+
+        var result = budgetTrackerService.ExportMonthToCsvFile(month, filePath, overwriteExisting);
+        WriteLine($"CSV file created: {result.FilePath}");
+        WriteLine($"Exported entries: {result.EntryCount}");
         return true;
     }
 
@@ -309,6 +318,32 @@ public sealed class ConsoleWorkflow
             }
 
             WriteLine("Select one of the listed category numbers.");
+        }
+    }
+
+    /// <summary>
+    /// Reads a yes-or-no confirmation from the user.
+    /// </summary>
+    /// <param name="prompt">The confirmation prompt.</param>
+    /// <returns>True when the user answers yes.</returns>
+    private static bool ReadConfirmation(string prompt)
+    {
+        while (true)
+        {
+            Write($"{prompt} (y/n): ");
+            var input = System.Console.ReadLine()?.Trim().ToLowerInvariant();
+
+            if (input is "y" or "yes")
+            {
+                return true;
+            }
+
+            if (input is "n" or "no")
+            {
+                return false;
+            }
+
+            WriteLine("Enter y or n.");
         }
     }
 

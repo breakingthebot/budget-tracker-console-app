@@ -121,6 +121,26 @@ public sealed class BudgetTrackerServiceTests
     }
 
     /// <summary>
+    /// Confirms CSV file export writes only the requested month.
+    /// </summary>
+    [TestMethod]
+    public void ExportMonthToCsvFile_CreatesRequestedMonthFile()
+    {
+        var service = CreateService();
+        var filePath = Path.Combine(Path.GetTempPath(), "BudgetTrackerServiceTests", Guid.NewGuid().ToString("N"), "month.csv");
+
+        service.AddEntry(new BudgetEntry(new DateOnly(2026, 7, 10), BudgetCategory.Entertainment, "Movie night", 24.00m));
+        service.AddEntry(new BudgetEntry(new DateOnly(2026, 8, 10), BudgetCategory.Entertainment, "Concert", 80.00m));
+
+        var result = service.ExportMonthToCsvFile(new DateOnly(2026, 7, 1), filePath, overwriteExisting: false);
+        var content = File.ReadAllText(filePath);
+
+        Assert.AreEqual(1, result.EntryCount);
+        StringAssert.Contains(content, "Movie night");
+        Assert.IsFalse(content.Contains("Concert", StringComparison.Ordinal));
+    }
+
+    /// <summary>
     /// Confirms invalid entries are rejected.
     /// </summary>
     [TestMethod]
@@ -145,6 +165,7 @@ public sealed class BudgetTrackerServiceTests
             new InMemoryCategoryBudgetTargetProvider(targets),
             new MonthlyReportBuilder(),
             new CsvExportService(),
+            new CsvExportFileService(new StructuredConsoleLogger()),
             new StructuredConsoleLogger());
     }
 

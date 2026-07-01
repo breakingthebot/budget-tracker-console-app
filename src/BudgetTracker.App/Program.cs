@@ -29,6 +29,7 @@ var budgetTrackerService = new BudgetTrackerService(
     new JsonCategoryBudgetTargetProvider(budgetTargetFilePath, logger),
     new MonthlyReportBuilder(),
     new CsvExportService(),
+    new CsvExportFileService(logger),
     logger);
 
 var workflow = new ConsoleWorkflow(budgetTrackerService, logger, dataFilePath);

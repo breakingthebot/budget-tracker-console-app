@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.4.0] - 2026-07-01
+- Add CSV file export support under the local exports folder.
+- Add overwrite confirmation for existing monthly export files.
+- Add automated tests for CSV file writing and monthly file export behavior.
+
 ## [0.3.0] - 2026-07-01
 - Add config-driven monthly category targets from JSON.
 - Add over-budget reporting to the monthly report output.

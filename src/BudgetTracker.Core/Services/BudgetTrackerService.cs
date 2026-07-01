@@ -1,6 +1,6 @@
 // Services/BudgetTrackerService.cs
 // Validates, stores, reports, and exports budget entries with persistence and target support.
-// Connects to: Models/BudgetEntry.cs, Abstractions/IBudgetEntryStore.cs, Abstractions/ICategoryBudgetTargetProvider.cs, Logging/StructuredConsoleLogger.cs, Services/MonthlyReportBuilder.cs, Services/CsvExportService.cs
+// Connects to: Models/BudgetEntry.cs, Models/CsvExportResult.cs, Abstractions/IBudgetEntryStore.cs, Abstractions/ICategoryBudgetTargetProvider.cs, Logging/StructuredConsoleLogger.cs, Services/MonthlyReportBuilder.cs, Services/CsvExportService.cs, Services/CsvExportFileService.cs
 // Created: 2026-07-01
 
 using BudgetTracker.Core.Abstractions;
@@ -19,6 +19,7 @@ public sealed class BudgetTrackerService
     private readonly ICategoryBudgetTargetProvider categoryBudgetTargetProvider;
     private readonly MonthlyReportBuilder reportBuilder;
     private readonly CsvExportService csvExportService;
+    private readonly CsvExportFileService csvExportFileService;
     private readonly StructuredConsoleLogger logger;
 
     /// <summary>
@@ -28,18 +29,21 @@ public sealed class BudgetTrackerService
     /// <param name="categoryBudgetTargetProvider">Loads configured category targets.</param>
     /// <param name="reportBuilder">Builds monthly reports.</param>
     /// <param name="csvExportService">Builds CSV export content.</param>
+    /// <param name="csvExportFileService">Writes CSV files to disk.</param>
     /// <param name="logger">Writes structured application logs.</param>
     public BudgetTrackerService(
         IBudgetEntryStore budgetEntryStore,
         ICategoryBudgetTargetProvider categoryBudgetTargetProvider,
         MonthlyReportBuilder reportBuilder,
         CsvExportService csvExportService,
+        CsvExportFileService csvExportFileService,
         StructuredConsoleLogger logger)
     {
         this.budgetEntryStore = budgetEntryStore;
         this.categoryBudgetTargetProvider = categoryBudgetTargetProvider;
         this.reportBuilder = reportBuilder;
         this.csvExportService = csvExportService;
+        this.csvExportFileService = csvExportFileService;
         this.logger = logger;
 
         var storedEntries = budgetEntryStore.LoadEntries();
@@ -96,6 +100,28 @@ public sealed class BudgetTrackerService
         var monthEntries = entries.Where(entry => entry.Date.Year == month.Year && entry.Date.Month == month.Month);
         logger.LogInfo("Exporting monthly CSV.", new { month = month.ToString("yyyy-MM"), count = monthEntries.Count() });
         return csvExportService.Export(monthEntries);
+    }
+
+    /// <summary>
+    /// Exports entries for the requested month to a CSV file.
+    /// </summary>
+    /// <param name="month">Any date inside the month to export.</param>
+    /// <param name="filePath">The CSV file path to create.</param>
+    /// <param name="overwriteExisting">Whether an existing file may be replaced.</param>
+    /// <returns>The created export file result.</returns>
+    public CsvExportResult ExportMonthToCsvFile(DateOnly month, string filePath, bool overwriteExisting)
+    {
+        var monthEntries = entries
+            .Where(entry => entry.Date.Year == month.Year && entry.Date.Month == month.Month)
+            .ToList();
+
+        var csvContent = csvExportService.Export(monthEntries);
+
+        logger.LogInfo(
+            "Exporting monthly CSV file.",
+            new { month = month.ToString("yyyy-MM"), filePath, count = monthEntries.Count, overwriteExisting });
+
+        return csvExportFileService.WriteToFile(filePath, csvContent, monthEntries.Count, overwriteExisting);
     }
 
     /// <summary>
