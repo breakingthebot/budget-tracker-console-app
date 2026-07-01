@@ -16,16 +16,19 @@ public sealed class ConsoleWorkflow
 {
     private readonly BudgetTrackerService budgetTrackerService;
     private readonly StructuredConsoleLogger logger;
+    private readonly string dataFilePath;
 
     /// <summary>
     /// Initializes the console workflow.
     /// </summary>
     /// <param name="budgetTrackerService">The budgeting application service.</param>
     /// <param name="logger">The shared application logger.</param>
-    public ConsoleWorkflow(BudgetTrackerService budgetTrackerService, StructuredConsoleLogger logger)
+    /// <param name="dataFilePath">The data file path shown to the user.</param>
+    public ConsoleWorkflow(BudgetTrackerService budgetTrackerService, StructuredConsoleLogger logger, string dataFilePath)
     {
         this.budgetTrackerService = budgetTrackerService;
         this.logger = logger;
+        this.dataFilePath = dataFilePath;
     }
 
     /// <summary>
@@ -37,6 +40,7 @@ public sealed class ConsoleWorkflow
 
         while (shouldContinue)
         {
+            RenderSessionStatus();
             RenderMenu();
             var choice = ReadRequiredString("Select an option");
 
@@ -166,6 +170,15 @@ public sealed class ConsoleWorkflow
         WriteLine("3. Export month to CSV");
         WriteLine("4. List all entries");
         WriteLine("5. Exit");
+    }
+
+    /// <summary>
+    /// Writes the current storage path and loaded entry count.
+    /// </summary>
+    private void RenderSessionStatus()
+    {
+        WriteLine($"Data file: {dataFilePath}");
+        WriteLine($"Tracked entries: {budgetTrackerService.GetEntries().Count}");
     }
 
     /// <summary>

@@ -1,8 +1,9 @@
 // Services/BudgetTrackerService.cs
-// Validates, stores, reports, and exports in-memory budget entries.
-// Connects to: Models/BudgetEntry.cs, Logging/StructuredConsoleLogger.cs, Services/MonthlyReportBuilder.cs, Services/CsvExportService.cs
+// Validates, stores, reports, and exports budget entries with persistence support.
+// Connects to: Models/BudgetEntry.cs, Abstractions/IBudgetEntryStore.cs, Logging/StructuredConsoleLogger.cs, Services/MonthlyReportBuilder.cs, Services/CsvExportService.cs
 // Created: 2026-07-01
 
+using BudgetTracker.Core.Abstractions;
 using BudgetTracker.Core.Logging;
 using BudgetTracker.Core.Models;
 
@@ -14,6 +15,7 @@ namespace BudgetTracker.Core.Services;
 public sealed class BudgetTrackerService
 {
     private readonly List<BudgetEntry> entries = [];
+    private readonly IBudgetEntryStore budgetEntryStore;
     private readonly MonthlyReportBuilder reportBuilder;
     private readonly CsvExportService csvExportService;
     private readonly StructuredConsoleLogger logger;
@@ -21,17 +23,24 @@ public sealed class BudgetTrackerService
     /// <summary>
     /// Initializes the budget tracker service.
     /// </summary>
+    /// <param name="budgetEntryStore">Loads and saves tracked entries.</param>
     /// <param name="reportBuilder">Builds monthly reports.</param>
     /// <param name="csvExportService">Builds CSV export content.</param>
     /// <param name="logger">Writes structured application logs.</param>
     public BudgetTrackerService(
+        IBudgetEntryStore budgetEntryStore,
         MonthlyReportBuilder reportBuilder,
         CsvExportService csvExportService,
         StructuredConsoleLogger logger)
     {
+        this.budgetEntryStore = budgetEntryStore;
         this.reportBuilder = reportBuilder;
         this.csvExportService = csvExportService;
         this.logger = logger;
+
+        var storedEntries = budgetEntryStore.LoadEntries();
+        entries.AddRange(storedEntries);
+        this.logger.LogInfo("Budget tracker service initialized.", new { loadedEntryCount = entries.Count });
     }
 
     /// <summary>
@@ -42,6 +51,7 @@ public sealed class BudgetTrackerService
     {
         ValidateEntry(entry);
         entries.Add(entry);
+        budgetEntryStore.SaveEntries(entries);
 
         logger.LogInfo(
             "Budget entry added.",

@@ -6,6 +6,7 @@
 using BudgetTracker.Core.Logging;
 using BudgetTracker.Core.Models;
 using BudgetTracker.Core.Services;
+using BudgetTracker.Core.Abstractions;
 
 namespace BudgetTracker.Core.Tests.Services;
 
@@ -29,6 +30,25 @@ public sealed class BudgetTrackerServiceTests
 
         Assert.AreEqual(1, entries.Count);
         Assert.AreEqual("Groceries", entries[0].Description);
+    }
+
+    /// <summary>
+    /// Confirms stored entries are loaded when the service starts.
+    /// </summary>
+    [TestMethod]
+    public void Constructor_LoadsExistingEntriesFromStore()
+    {
+        var existingEntries = new List<BudgetEntry>
+        {
+            new(new DateOnly(2026, 7, 1), BudgetCategory.Housing, "Rent", 1400.00m)
+        };
+
+        var service = CreateService(existingEntries);
+
+        var entries = service.GetEntries();
+
+        Assert.AreEqual(1, entries.Count);
+        Assert.AreEqual("Rent", entries[0].Description);
     }
 
     /// <summary>
@@ -84,11 +104,47 @@ public sealed class BudgetTrackerServiceTests
     /// Creates a test-ready service instance.
     /// </summary>
     /// <returns>A configured budget tracker service.</returns>
-    private static BudgetTrackerService CreateService()
+    private static BudgetTrackerService CreateService(IReadOnlyList<BudgetEntry>? initialEntries = null)
     {
         return new BudgetTrackerService(
+            new InMemoryBudgetEntryStore(initialEntries),
             new MonthlyReportBuilder(),
             new CsvExportService(),
             new StructuredConsoleLogger());
+    }
+
+    /// <summary>
+    /// Stores entries in memory for tests.
+    /// </summary>
+    private sealed class InMemoryBudgetEntryStore : IBudgetEntryStore
+    {
+        private List<BudgetEntry> storedEntries;
+
+        /// <summary>
+        /// Initializes the in-memory test store.
+        /// </summary>
+        /// <param name="initialEntries">Optional seed entries.</param>
+        public InMemoryBudgetEntryStore(IReadOnlyList<BudgetEntry>? initialEntries = null)
+        {
+            storedEntries = initialEntries?.ToList() ?? [];
+        }
+
+        /// <summary>
+        /// Returns the currently stored entries.
+        /// </summary>
+        /// <returns>The stored entries.</returns>
+        public IReadOnlyList<BudgetEntry> LoadEntries()
+        {
+            return storedEntries.ToList();
+        }
+
+        /// <summary>
+        /// Replaces the stored entries snapshot.
+        /// </summary>
+        /// <param name="entries">The entries to persist.</param>
+        public void SaveEntries(IReadOnlyList<BudgetEntry> entries)
+        {
+            storedEntries = entries.ToList();
+        }
     }
 }

@@ -16,4 +16,5 @@ obj/
 .vs/
 .dotnet/
 TestResults/
+data/
 AGENTS.md
