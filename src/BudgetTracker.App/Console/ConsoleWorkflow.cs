@@ -53,7 +53,8 @@ public sealed class ConsoleWorkflow
                     "2" => RunMonthlyReport(),
                     "3" => RunCsvExport(),
                     "4" => RunListEntries(),
-                    "5" => false,
+                    "5" => RunCsvImport(),
+                    "6" => false,
                     _ => HandleUnknownOption()
                 };
             }
@@ -173,12 +174,27 @@ public sealed class ConsoleWorkflow
     }
 
     /// <summary>
+    /// Imports entries from a CSV file path provided by the user.
+    /// </summary>
+    /// <returns>True to continue the menu loop.</returns>
+    private bool RunCsvImport()
+    {
+        var filePath = ReadRequiredString("Enter the CSV file path to import");
+        var result = budgetTrackerService.ImportEntriesFromCsvFile(filePath);
+
+        WriteLine($"Imported entries: {result.ImportedCount}");
+        WriteLine($"Skipped duplicates: {result.DuplicateCount}");
+        WriteLine($"Source file: {result.FilePath}");
+        return true;
+    }
+
+    /// <summary>
     /// Handles invalid menu input.
     /// </summary>
     /// <returns>True to continue the menu loop.</returns>
     private static bool HandleUnknownOption()
     {
-        WriteLine("Unknown option. Choose 1 through 5.");
+        WriteLine("Unknown option. Choose 1 through 6.");
         return true;
     }
 
@@ -192,7 +208,8 @@ public sealed class ConsoleWorkflow
         WriteLine("2. View monthly report");
         WriteLine("3. Export month to CSV");
         WriteLine("4. List all entries");
-        WriteLine("5. Exit");
+        WriteLine("5. Import entries from CSV");
+        WriteLine("6. Exit");
     }
 
     /// <summary>

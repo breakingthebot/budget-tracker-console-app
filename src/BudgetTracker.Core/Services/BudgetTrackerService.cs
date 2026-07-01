@@ -1,6 +1,6 @@
 // Services/BudgetTrackerService.cs
-// Validates, stores, reports, and exports budget entries with persistence and target support.
-// Connects to: Models/BudgetEntry.cs, Models/CsvExportResult.cs, Abstractions/IBudgetEntryStore.cs, Abstractions/ICategoryBudgetTargetProvider.cs, Logging/StructuredConsoleLogger.cs, Services/MonthlyReportBuilder.cs, Services/CsvExportService.cs, Services/CsvExportFileService.cs
+// Validates, stores, reports, imports, and exports budget entries with persistence and target support.
+// Connects to: Models/BudgetEntry.cs, Models/CsvExportResult.cs, Models/CsvImportResult.cs, Abstractions/IBudgetEntryStore.cs, Abstractions/ICategoryBudgetTargetProvider.cs, Logging/StructuredConsoleLogger.cs, Services/MonthlyReportBuilder.cs, Services/CsvExportService.cs, Services/CsvExportFileService.cs, Services/CsvImportService.cs
 // Created: 2026-07-01
 
 using BudgetTracker.Core.Abstractions;
@@ -20,6 +20,7 @@ public sealed class BudgetTrackerService
     private readonly MonthlyReportBuilder reportBuilder;
     private readonly CsvExportService csvExportService;
     private readonly CsvExportFileService csvExportFileService;
+    private readonly CsvImportService csvImportService;
     private readonly StructuredConsoleLogger logger;
 
     /// <summary>
@@ -30,6 +31,7 @@ public sealed class BudgetTrackerService
     /// <param name="reportBuilder">Builds monthly reports.</param>
     /// <param name="csvExportService">Builds CSV export content.</param>
     /// <param name="csvExportFileService">Writes CSV files to disk.</param>
+    /// <param name="csvImportService">Reads CSV files from disk.</param>
     /// <param name="logger">Writes structured application logs.</param>
     public BudgetTrackerService(
         IBudgetEntryStore budgetEntryStore,
@@ -37,6 +39,7 @@ public sealed class BudgetTrackerService
         MonthlyReportBuilder reportBuilder,
         CsvExportService csvExportService,
         CsvExportFileService csvExportFileService,
+        CsvImportService csvImportService,
         StructuredConsoleLogger logger)
     {
         this.budgetEntryStore = budgetEntryStore;
@@ -44,6 +47,7 @@ public sealed class BudgetTrackerService
         this.reportBuilder = reportBuilder;
         this.csvExportService = csvExportService;
         this.csvExportFileService = csvExportFileService;
+        this.csvImportService = csvImportService;
         this.logger = logger;
 
         var storedEntries = budgetEntryStore.LoadEntries();
@@ -122,6 +126,41 @@ public sealed class BudgetTrackerService
             new { month = month.ToString("yyyy-MM"), filePath, count = monthEntries.Count, overwriteExisting });
 
         return csvExportFileService.WriteToFile(filePath, csvContent, monthEntries.Count, overwriteExisting);
+    }
+
+    /// <summary>
+    /// Imports entries from a CSV file and persists new rows.
+    /// </summary>
+    /// <param name="filePath">The CSV file path to import.</param>
+    /// <returns>The completed import result.</returns>
+    public CsvImportResult ImportEntriesFromCsvFile(string filePath)
+    {
+        var importedEntries = csvImportService.LoadEntries(filePath);
+        var existingEntries = new HashSet<BudgetEntry>(entries);
+        var newEntries = new List<BudgetEntry>();
+        var duplicateCount = 0;
+
+        foreach (var entry in importedEntries)
+        {
+            ValidateEntry(entry);
+
+            if (!existingEntries.Add(entry))
+            {
+                duplicateCount++;
+                continue;
+            }
+
+            newEntries.Add(entry);
+        }
+
+        entries.AddRange(newEntries);
+        budgetEntryStore.SaveEntries(entries);
+
+        logger.LogInfo(
+            "CSV import completed.",
+            new { filePath, importedCount = newEntries.Count, duplicateCount });
+
+        return new CsvImportResult(filePath, newEntries.Count, duplicateCount);
     }
 
     /// <summary>

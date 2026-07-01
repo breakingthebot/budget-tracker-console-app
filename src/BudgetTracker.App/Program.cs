@@ -30,6 +30,7 @@ var budgetTrackerService = new BudgetTrackerService(
     new MonthlyReportBuilder(),
     new CsvExportService(),
     new CsvExportFileService(logger),
+    new CsvImportService(logger),
     logger);
 
 var workflow = new ConsoleWorkflow(budgetTrackerService, logger, dataFilePath);

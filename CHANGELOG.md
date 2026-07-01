@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.5.0] - 2026-07-01
+- Add CSV import support for historical transactions.
+- Add duplicate skipping when imported rows already exist in tracked data.
+- Add automated tests for CSV import parsing and service-level import behavior.
+
 ## [0.4.0] - 2026-07-01
 - Add CSV file export support under the local exports folder.
 - Add overwrite confirmation for existing monthly export files.

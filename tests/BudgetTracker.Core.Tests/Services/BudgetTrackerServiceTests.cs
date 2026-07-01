@@ -141,6 +141,36 @@ public sealed class BudgetTrackerServiceTests
     }
 
     /// <summary>
+    /// Confirms CSV imports add new entries and skip duplicates.
+    /// </summary>
+    [TestMethod]
+    public void ImportEntriesFromCsvFile_AddsNewEntriesAndSkipsDuplicates()
+    {
+        var existingEntries = new List<BudgetEntry>
+        {
+            new(new DateOnly(2026, 7, 10), BudgetCategory.Food, "Groceries", 45.50m)
+        };
+
+        var service = CreateService(initialEntries: existingEntries);
+        var filePath = Path.Combine(Path.GetTempPath(), "BudgetTrackerServiceTests", Guid.NewGuid().ToString("N"), "import.csv");
+        Directory.CreateDirectory(Path.GetDirectoryName(filePath)!);
+        File.WriteAllText(
+            filePath,
+            """
+            Date,Category,Description,Amount
+            2026-07-10,Food,Groceries,45.50
+            2026-07-11,Transportation,Train pass,12.00
+            """);
+
+        var result = service.ImportEntriesFromCsvFile(filePath);
+        var entries = service.GetEntries();
+
+        Assert.AreEqual(1, result.ImportedCount);
+        Assert.AreEqual(1, result.DuplicateCount);
+        Assert.AreEqual(2, entries.Count);
+    }
+
+    /// <summary>
     /// Confirms invalid entries are rejected.
     /// </summary>
     [TestMethod]
@@ -166,6 +196,7 @@ public sealed class BudgetTrackerServiceTests
             new MonthlyReportBuilder(),
             new CsvExportService(),
             new CsvExportFileService(new StructuredConsoleLogger()),
+            new CsvImportService(new StructuredConsoleLogger()),
             new StructuredConsoleLogger());
     }
 
