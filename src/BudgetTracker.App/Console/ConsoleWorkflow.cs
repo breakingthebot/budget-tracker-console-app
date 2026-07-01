@@ -99,9 +99,25 @@ public sealed class ConsoleWorkflow
         var report = budgetTrackerService.GetMonthlyReport(month);
 
         WriteLine($"Monthly report for {report.Month:yyyy-MM}");
+        WriteLine($"Month-end summary: {report.MonthEndSummary.Status}");
         WriteLine($"Entries: {report.EntryCount}");
         WriteLine($"Total spent: ${report.TotalSpent:0.00}");
         WriteLine($"Over-budget categories: {report.OverBudgetCategoryCount}");
+        WriteLine(
+            $"Spending targets on track: {report.MonthEndSummary.SpendingTargetsOnTrack}/{report.MonthEndSummary.SpendingTargetsConfigured}");
+        WriteLine($"Net spending variance: {FormatSignedCurrency(report.MonthEndSummary.NetSpendingVariance)}");
+
+        if (report.SavingsProgress is not null)
+        {
+            var savingsStatus = report.SavingsProgress.IsGoalMet ? "GOAL MET" : "IN PROGRESS";
+            WriteLine(
+                $"Savings progress: {report.SavingsProgress.Category} ${report.SavingsProgress.SavedAmount:0.00} / ${report.SavingsProgress.TargetAmount:0.00} ({report.SavingsProgress.ProgressPercentage:0.##}% - {savingsStatus})");
+
+            if (!report.SavingsProgress.IsGoalMet)
+            {
+                WriteLine($"Savings remaining: ${report.SavingsProgress.RemainingAmount:0.00}");
+            }
+        }
 
         if (report.CategoryBreakdown.Count == 0)
         {
@@ -380,4 +396,21 @@ public sealed class ConsoleWorkflow
     /// </summary>
     /// <param name="message">The message to write.</param>
     private static void Write(string message) => System.Console.Write(message);
+
+    /// <summary>
+    /// Formats a signed currency value for summary output.
+    /// </summary>
+    /// <param name="amount">The currency value to format.</param>
+    /// <returns>The signed currency string.</returns>
+    private static string FormatSignedCurrency(decimal amount)
+    {
+        if (amount == 0)
+        {
+            return "$0.00";
+        }
+
+        return amount > 0
+            ? $"+${amount:0.00}"
+            : $"-${Math.Abs(amount):0.00}";
+    }
 }

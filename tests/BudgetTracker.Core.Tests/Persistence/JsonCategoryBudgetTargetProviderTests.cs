@@ -28,7 +28,7 @@ public sealed class JsonCategoryBudgetTargetProviderTests
             """
             [
               { "category": "Food", "monthlyTarget": 450 },
-              { "category": "Utilities", "monthlyTarget": 200 }
+              { "category": "Savings", "monthlyTarget": 600, "evaluationMode": "min-progress" }
             ]
             """);
 
@@ -39,6 +39,7 @@ public sealed class JsonCategoryBudgetTargetProviderTests
         Assert.AreEqual(2, targets.Count);
         Assert.AreEqual("Food", targets[0].Category);
         Assert.AreEqual(450m, targets[0].MonthlyTarget);
+        Assert.AreEqual(BudgetTargetEvaluationModes.MinProgress, targets[1].EvaluationMode);
     }
 
     /// <summary>
@@ -68,6 +69,27 @@ public sealed class JsonCategoryBudgetTargetProviderTests
             [
               { "category": "Food", "monthlyTarget": 450 },
               { "category": "Food", "monthlyTarget": 500 }
+            ]
+            """);
+
+        var provider = CreateProvider(filePath);
+
+        Assert.Throws<InvalidOperationException>(() => provider.LoadTargets());
+    }
+
+    /// <summary>
+    /// Rejects unsupported evaluation modes.
+    /// </summary>
+    [TestMethod]
+    public void LoadTargets_WithInvalidEvaluationMode_ThrowsInvalidOperationException()
+    {
+        var filePath = CreateTempFilePath();
+        Directory.CreateDirectory(Path.GetDirectoryName(filePath)!);
+        File.WriteAllText(
+            filePath,
+            """
+            [
+              { "category": "Savings", "monthlyTarget": 600, "evaluationMode": "unknown-mode" }
             ]
             """);
 

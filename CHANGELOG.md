@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.8.0] - 2026-07-01
+- Add month-end summary output for overall budget health.
+- Add dedicated savings-goal progress tracking using target evaluation modes.
+- Add automated tests for savings progress and month-end summary behavior.
+
 ## [0.7.0] - 2026-07-01
 - Add config-driven category definitions from JSON.
 - Replace hard-coded category enums with validated configured category names.

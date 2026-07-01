@@ -10,4 +10,8 @@ namespace BudgetTracker.Core.Models;
 /// </summary>
 /// <param name="Category">The category with a target.</param>
 /// <param name="MonthlyTarget">The allowed monthly spend for that category.</param>
-public sealed record CategoryBudgetTarget(string Category, decimal MonthlyTarget);
+/// <param name="EvaluationMode">How the target should be interpreted when building reports.</param>
+public sealed record CategoryBudgetTarget(
+    string Category,
+    decimal MonthlyTarget,
+    string EvaluationMode = BudgetTargetEvaluationModes.MaxSpend);

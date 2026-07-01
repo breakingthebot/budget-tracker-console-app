@@ -60,22 +60,28 @@ public sealed class BudgetTrackerServiceTests
         var service = CreateService(targets:
         [
             new CategoryBudgetTarget("Food", 75.00m),
-            new CategoryBudgetTarget("Utilities", 100.00m)
+            new CategoryBudgetTarget("Utilities", 100.00m),
+            new CategoryBudgetTarget("Savings", 60.00m, BudgetTargetEvaluationModes.MinProgress)
         ]);
 
         service.AddEntry(new BudgetEntry(new DateOnly(2026, 7, 1), "Food", "Groceries", 40.00m));
         service.AddEntry(new BudgetEntry(new DateOnly(2026, 7, 3), "Food", "Lunch", 15.50m));
         service.AddEntry(new BudgetEntry(new DateOnly(2026, 7, 5), "Utilities", "Electricity", 70.00m));
         service.AddEntry(new BudgetEntry(new DateOnly(2026, 8, 1), "Food", "Next Month", 12.00m));
+        service.AddEntry(new BudgetEntry(new DateOnly(2026, 7, 7), "Savings", "Auto-transfer", 50.00m));
 
         var report = service.GetMonthlyReport(new DateOnly(2026, 7, 1));
 
-        Assert.AreEqual(3, report.EntryCount);
-        Assert.AreEqual(125.50m, report.TotalSpent);
-        Assert.AreEqual(2, report.CategoryBreakdown.Count);
+        Assert.AreEqual(4, report.EntryCount);
+        Assert.AreEqual(175.50m, report.TotalSpent);
+        Assert.AreEqual(3, report.CategoryBreakdown.Count);
         Assert.AreEqual("Utilities", report.CategoryBreakdown[0].Category);
         Assert.AreEqual(70.00m, report.CategoryBreakdown[0].Total);
         Assert.AreEqual(0, report.OverBudgetCategoryCount);
+        Assert.IsNotNull(report.SavingsProgress);
+        Assert.IsFalse(report.SavingsProgress!.IsGoalMet);
+        Assert.AreEqual(10.00m, report.SavingsProgress.RemainingAmount);
+        Assert.AreEqual("On track: spending stayed within target, and savings are still in progress.", report.MonthEndSummary.Status);
     }
 
     /// <summary>
@@ -102,6 +108,29 @@ public sealed class BudgetTrackerServiceTests
         Assert.IsTrue(report.CategoryBudgetStatuses[0].IsOverBudget);
         Assert.AreEqual(15.00m, report.CategoryBudgetStatuses[0].Variance);
         Assert.IsFalse(report.CategoryBudgetStatuses[1].IsOverBudget);
+    }
+
+    /// <summary>
+    /// Confirms savings goal progress and month-end summary reflect a met goal.
+    /// </summary>
+    [TestMethod]
+    public void GetMonthlyReport_WhenSavingsGoalMet_ReturnsStrongMonthSummary()
+    {
+        var service = CreateService(targets:
+        [
+            new CategoryBudgetTarget("Food", 80.00m),
+            new CategoryBudgetTarget("Savings", 100.00m, BudgetTargetEvaluationModes.MinProgress)
+        ]);
+
+        service.AddEntry(new BudgetEntry(new DateOnly(2026, 7, 1), "Food", "Groceries", 60.00m));
+        service.AddEntry(new BudgetEntry(new DateOnly(2026, 7, 2), "Savings", "Payday transfer", 120.00m));
+
+        var report = service.GetMonthlyReport(new DateOnly(2026, 7, 1));
+
+        Assert.IsNotNull(report.SavingsProgress);
+        Assert.IsTrue(report.SavingsProgress!.IsGoalMet);
+        Assert.AreEqual(100m, report.SavingsProgress.ProgressPercentage);
+        Assert.AreEqual("Strong month: spending stayed on track and the savings goal was met.", report.MonthEndSummary.Status);
     }
 
     /// <summary>

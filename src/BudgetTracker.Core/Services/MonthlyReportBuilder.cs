@@ -1,6 +1,6 @@
 // Services/MonthlyReportBuilder.cs
-// Builds monthly spending summaries and target comparisons from a set of budget entries.
-// Connects to: Models/BudgetEntry.cs, Models/CategoryDefinition.cs, Models/CategorySpend.cs, Models/CategoryBudgetTarget.cs, Models/CategoryBudgetStatus.cs, Models/MonthlyReport.cs
+// Builds monthly spending summaries, savings progress, and target comparisons from a set of budget entries.
+// Connects to: Models/BudgetEntry.cs, Models/CategoryDefinition.cs, Models/CategorySpend.cs, Models/CategoryBudgetTarget.cs, Models/CategoryBudgetStatus.cs, Models/SavingsProgress.cs, Models/MonthEndSummary.cs, Models/MonthlyReport.cs
 // Created: 2026-07-01
 
 using BudgetTracker.Core.Models;
@@ -46,7 +46,11 @@ public sealed class MonthlyReportBuilder
             .ToList();
 
         var spendByCategory = categoryBreakdown.ToDictionary(item => item.Category, item => item.Total, StringComparer.OrdinalIgnoreCase);
-        var categoryBudgetStatuses = targets
+        var spendingTargets = targets
+            .Where(target => string.Equals(target.EvaluationMode, BudgetTargetEvaluationModes.MaxSpend, StringComparison.OrdinalIgnoreCase))
+            .ToList();
+
+        var categoryBudgetStatuses = spendingTargets
             .Select(target =>
             {
                 var spent = spendByCategory.GetValueOrDefault(target.Category, 0m);
@@ -64,12 +68,76 @@ public sealed class MonthlyReportBuilder
             .ThenBy(item => item.Category)
             .ToList();
 
+        var savingsTarget = targets.FirstOrDefault(
+            target => string.Equals(target.EvaluationMode, BudgetTargetEvaluationModes.MinProgress, StringComparison.OrdinalIgnoreCase));
+
+        SavingsProgress? savingsProgress = null;
+
+        if (savingsTarget is not null)
+        {
+            var savedAmount = spendByCategory.GetValueOrDefault(savingsTarget.Category, 0m);
+            var remainingAmount = Math.Max(0m, savingsTarget.MonthlyTarget - savedAmount);
+            var progressPercentage = savingsTarget.MonthlyTarget == 0
+                ? 0m
+                : Math.Min(100m, Math.Round((savedAmount / savingsTarget.MonthlyTarget) * 100m, 2));
+
+            savingsProgress = new SavingsProgress(
+                savingsTarget.Category,
+                savedAmount,
+                savingsTarget.MonthlyTarget,
+                remainingAmount,
+                savedAmount >= savingsTarget.MonthlyTarget,
+                progressPercentage);
+        }
+
+        var netSpendingVariance = categoryBudgetStatuses.Sum(item => item.Variance);
+        var monthEndStatus = BuildMonthEndStatus(categoryBudgetStatuses, savingsProgress);
+        var monthEndSummary = new MonthEndSummary(
+            monthEndStatus,
+            categoryBudgetStatuses.Count(item => !item.IsOverBudget),
+            categoryBudgetStatuses.Count,
+            netSpendingVariance);
+
         return new MonthlyReport(
             normalizedMonth,
             monthlyEntries.Sum(entry => entry.Amount),
             monthlyEntries.Count,
             categoryBreakdown,
             categoryBudgetStatuses,
-            categoryBudgetStatuses.Count(item => item.IsOverBudget));
+            categoryBudgetStatuses.Count(item => item.IsOverBudget),
+            savingsProgress,
+            monthEndSummary);
+    }
+
+    /// <summary>
+    /// Builds the top-level month-end status message from spending and savings signals.
+    /// </summary>
+    /// <param name="categoryBudgetStatuses">The evaluated spending target statuses.</param>
+    /// <param name="savingsProgress">The evaluated savings progress, when configured.</param>
+    /// <returns>The user-facing month-end status line.</returns>
+    private static string BuildMonthEndStatus(
+        IReadOnlyList<CategoryBudgetStatus> categoryBudgetStatuses,
+        SavingsProgress? savingsProgress)
+    {
+        var hasOverBudgetCategories = categoryBudgetStatuses.Any(status => status.IsOverBudget);
+
+        if (hasOverBudgetCategories)
+        {
+            return savingsProgress is { IsGoalMet: true }
+                ? "Mixed month: savings goal met, but some spending targets were missed."
+                : "Needs attention: spending targets were missed this month.";
+        }
+
+        if (savingsProgress is { IsGoalMet: true })
+        {
+            return "Strong month: spending stayed on track and the savings goal was met.";
+        }
+
+        if (savingsProgress is not null)
+        {
+            return "On track: spending stayed within target, and savings are still in progress.";
+        }
+
+        return "On track: spending stayed within configured targets.";
     }
 }

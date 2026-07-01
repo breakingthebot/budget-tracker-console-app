@@ -94,5 +94,13 @@ public sealed class JsonCategoryBudgetTargetProvider : ICategoryBudgetTargetProv
         {
             throw new InvalidOperationException("Budget target configuration cannot contain blank category names.");
         }
+
+        if (targets.Any(
+                target => !string.Equals(target.EvaluationMode, BudgetTargetEvaluationModes.MaxSpend, StringComparison.OrdinalIgnoreCase)
+                    && !string.Equals(target.EvaluationMode, BudgetTargetEvaluationModes.MinProgress, StringComparison.OrdinalIgnoreCase)))
+        {
+            throw new InvalidOperationException(
+                $"Budget target configuration must use '{BudgetTargetEvaluationModes.MaxSpend}' or '{BudgetTargetEvaluationModes.MinProgress}' evaluation modes.");
+        }
     }
 }

@@ -25,7 +25,8 @@
   },
   {
     "category": "Savings",
-    "monthlyTarget": 600
+    "monthlyTarget": 600,
+    "evaluationMode": "min-progress"
   },
   {
     "category": "Miscellaneous",
