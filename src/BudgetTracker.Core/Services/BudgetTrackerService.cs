@@ -1,6 +1,6 @@
 // Services/BudgetTrackerService.cs
-// Validates, stores, reports, previews imports, imports, and exports budget entries with persistence and config-backed categories.
-// Connects to: Models/BudgetEntry.cs, Models/CategoryDefinition.cs, Models/CsvExportResult.cs, Models/CsvImportPreview.cs, Models/CsvImportResult.cs, Abstractions/IBudgetEntryStore.cs, Abstractions/ICategoryDefinitionProvider.cs, Abstractions/ICategoryBudgetTargetProvider.cs, Logging/StructuredConsoleLogger.cs, Services/MonthlyReportBuilder.cs, Services/CsvExportService.cs, Services/CsvExportFileService.cs, Services/CsvImportService.cs
+// Validates, stores, reports, previews imports, imports, exports, and audits budget workflows with persistence and config-backed categories.
+// Connects to: Models/BudgetEntry.cs, Models/CategoryDefinition.cs, Models/CategoryBudgetTargetHistoryEntry.cs, Models/CsvExportResult.cs, Models/CsvImportPreview.cs, Models/CsvImportResult.cs, Abstractions/IBudgetEntryStore.cs, Abstractions/ICategoryDefinitionProvider.cs, Abstractions/ICategoryBudgetTargetProvider.cs, Abstractions/ICategoryBudgetTargetHistoryStore.cs, Logging/StructuredConsoleLogger.cs, Services/MonthlyReportBuilder.cs, Services/CsvExportService.cs, Services/CsvExportFileService.cs, Services/CsvImportService.cs
 // Created: 2026-07-01
 
 using BudgetTracker.Core.Abstractions;
@@ -18,6 +18,7 @@ public sealed class BudgetTrackerService
     private readonly IBudgetEntryStore budgetEntryStore;
     private readonly ICategoryDefinitionProvider categoryDefinitionProvider;
     private readonly ICategoryBudgetTargetProvider categoryBudgetTargetProvider;
+    private readonly ICategoryBudgetTargetHistoryStore categoryBudgetTargetHistoryStore;
     private readonly MonthlyReportBuilder reportBuilder;
     private readonly CsvExportService csvExportService;
     private readonly CsvExportFileService csvExportFileService;
@@ -30,6 +31,7 @@ public sealed class BudgetTrackerService
     /// <param name="budgetEntryStore">Loads and saves tracked entries.</param>
     /// <param name="categoryDefinitionProvider">Loads configured categories.</param>
     /// <param name="categoryBudgetTargetProvider">Loads configured category targets.</param>
+    /// <param name="categoryBudgetTargetHistoryStore">Loads and saves budget-target audit history.</param>
     /// <param name="reportBuilder">Builds monthly reports.</param>
     /// <param name="csvExportService">Builds CSV export content.</param>
     /// <param name="csvExportFileService">Writes CSV files to disk.</param>
@@ -39,6 +41,7 @@ public sealed class BudgetTrackerService
         IBudgetEntryStore budgetEntryStore,
         ICategoryDefinitionProvider categoryDefinitionProvider,
         ICategoryBudgetTargetProvider categoryBudgetTargetProvider,
+        ICategoryBudgetTargetHistoryStore categoryBudgetTargetHistoryStore,
         MonthlyReportBuilder reportBuilder,
         CsvExportService csvExportService,
         CsvExportFileService csvExportFileService,
@@ -48,6 +51,7 @@ public sealed class BudgetTrackerService
         this.budgetEntryStore = budgetEntryStore;
         this.categoryDefinitionProvider = categoryDefinitionProvider;
         this.categoryBudgetTargetProvider = categoryBudgetTargetProvider;
+        this.categoryBudgetTargetHistoryStore = categoryBudgetTargetHistoryStore;
         this.reportBuilder = reportBuilder;
         this.csvExportService = csvExportService;
         this.csvExportFileService = csvExportFileService;
@@ -125,7 +129,7 @@ public sealed class BudgetTrackerService
     /// </summary>
     /// <param name="category">The category whose target should change.</param>
     /// <param name="monthlyTarget">The replacement monthly target amount.</param>
-    public void UpdateCategoryBudgetTarget(string category, decimal monthlyTarget)
+    public CategoryBudgetTargetHistoryEntry? UpdateCategoryBudgetTarget(string category, decimal monthlyTarget)
     {
         if (string.IsNullOrWhiteSpace(category))
         {
@@ -158,6 +162,13 @@ public sealed class BudgetTrackerService
         }
 
         var existingTarget = existingTargets[existingTargetIndex];
+
+        if (existingTarget.MonthlyTarget == monthlyTarget)
+        {
+            logger.LogInfo("Category budget target unchanged.", new { Category = matchingCategory.Name, monthlyTarget });
+            return null;
+        }
+
         existingTargets[existingTargetIndex] = existingTarget with
         {
             MonthlyTarget = monthlyTarget,
@@ -165,7 +176,64 @@ public sealed class BudgetTrackerService
         };
 
         categoryBudgetTargetProvider.SaveTargets(existingTargets);
-        logger.LogInfo("Category budget target updated.", new { Category = matchingCategory.Name, monthlyTarget });
+        var historyEntries = categoryBudgetTargetHistoryStore.LoadHistory().ToList();
+        var historyEntry = new CategoryBudgetTargetHistoryEntry(
+            DateTimeOffset.UtcNow,
+            matchingCategory.Name,
+            existingTarget.MonthlyTarget,
+            monthlyTarget,
+            existingTarget.EvaluationMode);
+        historyEntries.Add(historyEntry);
+        categoryBudgetTargetHistoryStore.SaveHistory(historyEntries);
+
+        logger.LogInfo(
+            "Category budget target updated.",
+            new
+            {
+                Category = matchingCategory.Name,
+                previousMonthlyTarget = existingTarget.MonthlyTarget,
+                updatedMonthlyTarget = monthlyTarget,
+                existingTarget.EvaluationMode
+            });
+
+        return historyEntry;
+    }
+
+    /// <summary>
+    /// Returns recent budget-target history entries, optionally filtered by category.
+    /// </summary>
+    /// <param name="category">The optional category filter.</param>
+    /// <param name="limit">The maximum number of entries to return.</param>
+    /// <returns>The matching target-change history entries in reverse chronological order.</returns>
+    public IReadOnlyList<CategoryBudgetTargetHistoryEntry> GetBudgetTargetHistory(string? category = null, int limit = 20)
+    {
+        if (limit <= 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(limit), "History limit must be greater than zero.");
+        }
+
+        var historyEntries = categoryBudgetTargetHistoryStore.LoadHistory();
+
+        if (string.IsNullOrWhiteSpace(category))
+        {
+            return historyEntries
+                .OrderByDescending(entry => entry.ChangedAtUtc)
+                .Take(limit)
+                .ToList();
+        }
+
+        var configuredCategories = categoryDefinitionProvider.LoadCategories();
+
+        if (!configuredCategories.Any(item => string.Equals(item.Name, category, StringComparison.OrdinalIgnoreCase)))
+        {
+            throw new ArgumentException($"Category '{category}' is not configured.", nameof(category));
+        }
+
+        return historyEntries
+            .Where(entry => string.Equals(entry.Category, category, StringComparison.OrdinalIgnoreCase))
+            .OrderByDescending(entry => entry.ChangedAtUtc)
+            .Take(limit)
+            .ToList();
     }
 
     /// <summary>

@@ -15,6 +15,8 @@ namespace BudgetTracker.App.Console;
 /// </summary>
 public sealed class ConsoleWorkflow
 {
+    private const int HistoryDisplayLimit = 20;
+
     private readonly BudgetTrackerService budgetTrackerService;
     private readonly StructuredConsoleLogger logger;
     private readonly string dataFilePath;
@@ -55,7 +57,8 @@ public sealed class ConsoleWorkflow
                     "4" => RunListEntries(),
                     "5" => RunCsvImport(),
                     "6" => RunEditCategoryBudgetTarget(),
-                    "7" => false,
+                    "7" => RunViewBudgetTargetHistory(),
+                    "8" => false,
                     _ => HandleUnknownOption()
                 };
             }
@@ -268,8 +271,49 @@ public sealed class ConsoleWorkflow
         var currentTarget = targets.First(target => string.Equals(target.Category, category, StringComparison.OrdinalIgnoreCase));
         var newTarget = ReadPositiveAmount($"Enter the new monthly target for {currentTarget.Category} (current ${currentTarget.MonthlyTarget:0.00})");
 
-        budgetTrackerService.UpdateCategoryBudgetTarget(currentTarget.Category, newTarget);
+        var historyEntry = budgetTrackerService.UpdateCategoryBudgetTarget(currentTarget.Category, newTarget);
+
+        if (historyEntry is null)
+        {
+            WriteLine($"{currentTarget.Category} target was unchanged.");
+            return true;
+        }
+
         WriteLine($"Updated {currentTarget.Category} target to ${newTarget:0.00}.");
+        WriteLine($"Audit recorded at {historyEntry.ChangedAtUtc:yyyy-MM-dd HH:mm:ss} UTC.");
+        return true;
+    }
+
+    /// <summary>
+    /// Displays recent target-change history.
+    /// </summary>
+    /// <returns>True to continue the menu loop.</returns>
+    private bool RunViewBudgetTargetHistory()
+    {
+        WriteLine("Configured categories:");
+
+        foreach (var category in budgetTrackerService.GetConfiguredCategories())
+        {
+            WriteLine($"- {category.Name}");
+        }
+
+        var categoryFilter = ReadOptionalString("Enter a category name to filter history or press Enter for all categories");
+        var historyEntries = budgetTrackerService.GetBudgetTargetHistory(categoryFilter, HistoryDisplayLimit);
+
+        if (historyEntries.Count == 0)
+        {
+            WriteLine("No target change history found.");
+            return true;
+        }
+
+        WriteLine($"Showing up to {HistoryDisplayLimit} most recent target changes:");
+
+        foreach (var entry in historyEntries)
+        {
+            WriteLine(
+                $"{entry.ChangedAtUtc:yyyy-MM-dd HH:mm:ss} UTC | {entry.Category} | ${entry.PreviousMonthlyTarget:0.00} -> ${entry.UpdatedMonthlyTarget:0.00} | {entry.EvaluationMode}");
+        }
+
         return true;
     }
 
@@ -279,7 +323,7 @@ public sealed class ConsoleWorkflow
     /// <returns>True to continue the menu loop.</returns>
     private static bool HandleUnknownOption()
     {
-        WriteLine("Unknown option. Choose 1 through 7.");
+        WriteLine("Unknown option. Choose 1 through 8.");
         return true;
     }
 
@@ -295,7 +339,8 @@ public sealed class ConsoleWorkflow
         WriteLine("4. List all entries");
         WriteLine("5. Import entries from CSV");
         WriteLine("6. Edit category budget target");
-        WriteLine("7. Exit");
+        WriteLine("7. View target change history");
+        WriteLine("8. Exit");
     }
 
     /// <summary>
@@ -326,6 +371,18 @@ public sealed class ConsoleWorkflow
 
             WriteLine("A value is required.");
         }
+    }
+
+    /// <summary>
+    /// Reads an optional string value from the console.
+    /// </summary>
+    /// <param name="prompt">The prompt shown to the user.</param>
+    /// <returns>The trimmed value or null when left blank.</returns>
+    private static string? ReadOptionalString(string prompt)
+    {
+        Write($"{prompt}: ");
+        var input = System.Console.ReadLine()?.Trim();
+        return string.IsNullOrWhiteSpace(input) ? null : input;
     }
 
     /// <summary>

@@ -289,12 +289,18 @@ public sealed class BudgetTrackerServiceTests
             new CategoryBudgetTarget("Savings", 60.00m, BudgetTargetEvaluationModes.MinProgress)
         ]);
 
-        service.UpdateCategoryBudgetTarget("Food", 120.00m);
+        var historyEntry = service.UpdateCategoryBudgetTarget("Food", 120.00m);
 
         var targets = service.GetConfiguredBudgetTargets();
+        var historyEntries = service.GetBudgetTargetHistory();
 
         Assert.AreEqual(120.00m, targets.First(target => target.Category == "Food").MonthlyTarget);
         Assert.AreEqual(BudgetTargetEvaluationModes.MinProgress, targets.First(target => target.Category == "Savings").EvaluationMode);
+        Assert.IsNotNull(historyEntry);
+        Assert.AreEqual(1, historyEntries.Count);
+        Assert.AreEqual("Food", historyEntries[0].Category);
+        Assert.AreEqual(75.00m, historyEntries[0].PreviousMonthlyTarget);
+        Assert.AreEqual(120.00m, historyEntries[0].UpdatedMonthlyTarget);
     }
 
     /// <summary>
@@ -323,18 +329,72 @@ public sealed class BudgetTrackerServiceTests
     }
 
     /// <summary>
+    /// Confirms unchanged target edits do not create audit history.
+    /// </summary>
+    [TestMethod]
+    public void UpdateCategoryBudgetTarget_WithUnchangedAmount_ReturnsNullAndSkipsHistory()
+    {
+        var service = CreateService(targets:
+        [
+            new CategoryBudgetTarget("Food", 75.00m)
+        ]);
+
+        var historyEntry = service.UpdateCategoryBudgetTarget("Food", 75.00m);
+        var historyEntries = service.GetBudgetTargetHistory();
+
+        Assert.IsNull(historyEntry);
+        Assert.AreEqual(0, historyEntries.Count);
+    }
+
+    /// <summary>
+    /// Confirms target history can be filtered by category.
+    /// </summary>
+    [TestMethod]
+    public void GetBudgetTargetHistory_WithCategoryFilter_ReturnsMatchingEntriesOnly()
+    {
+        var service = CreateService(
+            targets:
+            [
+                new CategoryBudgetTarget("Food", 75.00m),
+                new CategoryBudgetTarget("Savings", 60.00m, BudgetTargetEvaluationModes.MinProgress)
+            ],
+            historyEntries:
+            [
+                new CategoryBudgetTargetHistoryEntry(
+                    new DateTimeOffset(2026, 7, 1, 9, 0, 0, TimeSpan.Zero),
+                    "Food",
+                    50.00m,
+                    75.00m,
+                    BudgetTargetEvaluationModes.MaxSpend),
+                new CategoryBudgetTargetHistoryEntry(
+                    new DateTimeOffset(2026, 7, 2, 9, 0, 0, TimeSpan.Zero),
+                    "Savings",
+                    55.00m,
+                    60.00m,
+                    BudgetTargetEvaluationModes.MinProgress)
+            ]);
+
+        var historyEntries = service.GetBudgetTargetHistory("Savings");
+
+        Assert.AreEqual(1, historyEntries.Count);
+        Assert.AreEqual("Savings", historyEntries[0].Category);
+    }
+
+    /// <summary>
     /// Creates a test-ready service instance.
     /// </summary>
     /// <returns>A configured budget tracker service.</returns>
     private static BudgetTrackerService CreateService(
         IReadOnlyList<BudgetEntry>? initialEntries = null,
         IReadOnlyList<CategoryBudgetTarget>? targets = null,
-        IReadOnlyList<CategoryDefinition>? categories = null)
+        IReadOnlyList<CategoryDefinition>? categories = null,
+        IReadOnlyList<CategoryBudgetTargetHistoryEntry>? historyEntries = null)
     {
         return new BudgetTrackerService(
             new InMemoryBudgetEntryStore(initialEntries),
             new InMemoryCategoryDefinitionProvider(categories),
             new InMemoryCategoryBudgetTargetProvider(targets),
+            new InMemoryCategoryBudgetTargetHistoryStore(historyEntries),
             new MonthlyReportBuilder(),
             new CsvExportService(),
             new CsvExportFileService(new StructuredConsoleLogger()),
@@ -445,6 +505,41 @@ public sealed class BudgetTrackerServiceTests
         public IReadOnlyList<CategoryDefinition> LoadCategories()
         {
             return categories;
+        }
+    }
+
+    /// <summary>
+    /// Stores budget-target history in memory for tests.
+    /// </summary>
+    private sealed class InMemoryCategoryBudgetTargetHistoryStore : ICategoryBudgetTargetHistoryStore
+    {
+        private List<CategoryBudgetTargetHistoryEntry> historyEntries;
+
+        /// <summary>
+        /// Initializes the in-memory history store.
+        /// </summary>
+        /// <param name="historyEntries">Optional seed history entries.</param>
+        public InMemoryCategoryBudgetTargetHistoryStore(IReadOnlyList<CategoryBudgetTargetHistoryEntry>? historyEntries = null)
+        {
+            this.historyEntries = historyEntries?.ToList() ?? [];
+        }
+
+        /// <summary>
+        /// Returns the stored history entries.
+        /// </summary>
+        /// <returns>The history entries.</returns>
+        public IReadOnlyList<CategoryBudgetTargetHistoryEntry> LoadHistory()
+        {
+            return historyEntries.ToList();
+        }
+
+        /// <summary>
+        /// Replaces the stored history snapshot.
+        /// </summary>
+        /// <param name="entries">The entries to persist.</param>
+        public void SaveHistory(IReadOnlyList<CategoryBudgetTargetHistoryEntry> entries)
+        {
+            historyEntries = entries.ToList();
         }
     }
 }

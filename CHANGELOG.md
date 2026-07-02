@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.12.0] - 2026-07-01
+- Add a JSON-backed audit history for monthly category target changes.
+- Record target edits with before-and-after values plus evaluation mode metadata.
+- Add a console workflow for viewing recent target-change history with optional category filtering.
+
 ## [0.11.0] - 2026-07-01
 - Add a console workflow for editing configured monthly category targets.
 - Persist updated target amounts back to the JSON target configuration file.
