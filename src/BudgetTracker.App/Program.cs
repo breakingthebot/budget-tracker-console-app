@@ -35,6 +35,7 @@ var budgetTrackerService = new BudgetTrackerService(
     new JsonCategoryBudgetTargetHistoryStore(budgetTargetHistoryFilePath, logger),
     new MonthlyReportBuilder(),
     new CsvExportService(),
+    new MonthlyReportCsvExportService(),
     new CsvExportFileService(logger),
     new CsvImportService(logger),
     logger);

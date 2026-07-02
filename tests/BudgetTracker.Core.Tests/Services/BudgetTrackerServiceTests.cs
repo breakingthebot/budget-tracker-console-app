@@ -170,6 +170,30 @@ public sealed class BudgetTrackerServiceTests
     }
 
     /// <summary>
+    /// Confirms monthly report CSV export writes summary-oriented content.
+    /// </summary>
+    [TestMethod]
+    public void ExportMonthlyReportToCsvFile_CreatesReportCsvFile()
+    {
+        var service = CreateService(targets:
+        [
+            new CategoryBudgetTarget("Food", 75.00m),
+            new CategoryBudgetTarget("Savings", 60.00m, BudgetTargetEvaluationModes.MinProgress)
+        ]);
+        var filePath = Path.Combine(Path.GetTempPath(), "BudgetTrackerServiceTests", Guid.NewGuid().ToString("N"), "report.csv");
+
+        service.AddEntry(new BudgetEntry(new DateOnly(2026, 7, 10), "Food", "Groceries", 24.00m));
+        service.AddEntry(new BudgetEntry(new DateOnly(2026, 7, 11), "Savings", "Transfer", 50.00m));
+
+        var result = service.ExportMonthlyReportToCsvFile(new DateOnly(2026, 7, 1), filePath, overwriteExisting: false);
+        var content = File.ReadAllText(filePath);
+
+        Assert.AreEqual(2, result.EntryCount);
+        StringAssert.Contains(content, "Summary,Month,2026-07");
+        StringAssert.Contains(content, "BudgetStatus,Category,Spent,Target,Variance,IsOverBudget");
+    }
+
+    /// <summary>
     /// Confirms CSV imports add new entries and skip duplicates.
     /// </summary>
     [TestMethod]
@@ -457,6 +481,7 @@ public sealed class BudgetTrackerServiceTests
             new InMemoryCategoryBudgetTargetHistoryStore(historyEntries),
             new MonthlyReportBuilder(),
             new CsvExportService(),
+            new MonthlyReportCsvExportService(),
             new CsvExportFileService(new StructuredConsoleLogger()),
             new CsvImportService(new StructuredConsoleLogger()),
             new StructuredConsoleLogger());

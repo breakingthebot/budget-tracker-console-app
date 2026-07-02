@@ -54,12 +54,13 @@ public sealed class ConsoleWorkflow
                     "1" => RunAddEntry(),
                     "2" => RunMonthlyReport(),
                     "3" => RunCsvExport(),
-                    "4" => RunListEntries(),
-                    "5" => RunCsvImport(),
-                    "6" => RunEditCategoryBudgetTarget(),
-                    "7" => RunViewBudgetTargetHistory(),
-                    "8" => RunRollbackBudgetTargetHistory(),
-                    "9" => false,
+                    "4" => RunMonthlyReportCsvExport(),
+                    "5" => RunListEntries(),
+                    "6" => RunCsvImport(),
+                    "7" => RunEditCategoryBudgetTarget(),
+                    "8" => RunViewBudgetTargetHistory(),
+                    "9" => RunRollbackBudgetTargetHistory(),
+                    "10" => false,
                     _ => HandleUnknownOption()
                 };
             }
@@ -169,6 +170,27 @@ public sealed class ConsoleWorkflow
         var result = budgetTrackerService.ExportMonthToCsvFile(month, filePath, overwriteExisting);
         WriteLine($"CSV file created: {result.FilePath}");
         WriteLine($"Exported entries: {result.EntryCount}");
+        return true;
+    }
+
+    /// <summary>
+    /// Exports the requested monthly report to a CSV file.
+    /// </summary>
+    /// <returns>True to continue the menu loop.</returns>
+    private bool RunMonthlyReportCsvExport()
+    {
+        var month = ReadMonth("Enter report export month (yyyy-mm)");
+        var filePath = ExportFilePathProvider.GetMonthlyReportExportFilePath(month);
+        var overwriteExisting = false;
+
+        if (File.Exists(filePath))
+        {
+            overwriteExisting = ReadConfirmation($"Report export file already exists at {filePath}. Overwrite it");
+        }
+
+        var result = budgetTrackerService.ExportMonthlyReportToCsvFile(month, filePath, overwriteExisting);
+        WriteLine($"Report CSV file created: {result.FilePath}");
+        WriteLine($"Report entries represented: {result.EntryCount}");
         return true;
     }
 
@@ -362,7 +384,7 @@ public sealed class ConsoleWorkflow
     /// <returns>True to continue the menu loop.</returns>
     private static bool HandleUnknownOption()
     {
-        WriteLine("Unknown option. Choose 1 through 9.");
+        WriteLine("Unknown option. Choose 1 through 10.");
         return true;
     }
 
@@ -374,13 +396,14 @@ public sealed class ConsoleWorkflow
         WriteLine("Budget Tracker");
         WriteLine("1. Add expense");
         WriteLine("2. View monthly report");
-        WriteLine("3. Export month to CSV");
-        WriteLine("4. List all entries");
-        WriteLine("5. Import entries from CSV");
-        WriteLine("6. Edit category budget target");
-        WriteLine("7. View target change history");
-        WriteLine("8. Roll back target from history");
-        WriteLine("9. Exit");
+        WriteLine("3. Export month transactions to CSV");
+        WriteLine("4. Export monthly report to CSV");
+        WriteLine("5. List all entries");
+        WriteLine("6. Import entries from CSV");
+        WriteLine("7. Edit category budget target");
+        WriteLine("8. View target change history");
+        WriteLine("9. Roll back target from history");
+        WriteLine("10. Exit");
     }
 
     /// <summary>

@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.14.0] - 2026-07-01
+- Add a dedicated CSV export for monthly report summaries.
+- Export summary metrics, savings progress, category breakdowns, and per-category budget status rows.
+- Add automated tests for report CSV structure and service-level file export behavior.
+
 ## [0.13.0] - 2026-07-01
 - Add rollback for category budget targets using selected audit-history entries.
 - Reject stale rollback attempts when a category target has changed again since the chosen history record.
