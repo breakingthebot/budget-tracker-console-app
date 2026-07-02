@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.13.0] - 2026-07-01
+- Add rollback for category budget targets using selected audit-history entries.
+- Reject stale rollback attempts when a category target has changed again since the chosen history record.
+- Add automated tests for successful rollback and stale-history protection.
+
 ## [0.12.0] - 2026-07-01
 - Add a JSON-backed audit history for monthly category target changes.
 - Record target edits with before-and-after values plus evaluation mode metadata.

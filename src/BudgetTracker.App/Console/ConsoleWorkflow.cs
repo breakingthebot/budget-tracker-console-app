@@ -58,7 +58,8 @@ public sealed class ConsoleWorkflow
                     "5" => RunCsvImport(),
                     "6" => RunEditCategoryBudgetTarget(),
                     "7" => RunViewBudgetTargetHistory(),
-                    "8" => false,
+                    "8" => RunRollbackBudgetTargetHistory(),
+                    "9" => false,
                     _ => HandleUnknownOption()
                 };
             }
@@ -318,12 +319,50 @@ public sealed class ConsoleWorkflow
     }
 
     /// <summary>
+    /// Rolls a category target back using a selected history entry.
+    /// </summary>
+    /// <returns>True to continue the menu loop.</returns>
+    private bool RunRollbackBudgetTargetHistory()
+    {
+        var historyEntries = budgetTrackerService.GetBudgetTargetHistory(limit: HistoryDisplayLimit);
+
+        if (historyEntries.Count == 0)
+        {
+            WriteLine("No target change history is available to roll back.");
+            return true;
+        }
+
+        WriteLine($"Select one of the {historyEntries.Count} most recent target changes to roll back:");
+
+        for (var index = 0; index < historyEntries.Count; index++)
+        {
+            var entry = historyEntries[index];
+            WriteLine(
+                $"{index + 1}. {entry.ChangedAtUtc:yyyy-MM-dd HH:mm:ss} UTC | {entry.Category} | ${entry.PreviousMonthlyTarget:0.00} -> ${entry.UpdatedMonthlyTarget:0.00} | {entry.EvaluationMode}");
+        }
+
+        var selectedEntry = ReadHistoryEntrySelection(historyEntries);
+
+        if (!ReadConfirmation(
+                $"Roll back {selectedEntry.Category} from ${selectedEntry.UpdatedMonthlyTarget:0.00} to ${selectedEntry.PreviousMonthlyTarget:0.00}"))
+        {
+            WriteLine("Rollback cancelled.");
+            return true;
+        }
+
+        var rollbackEntry = budgetTrackerService.RollbackBudgetTargetHistoryEntry(selectedEntry);
+        WriteLine($"Rolled back {rollbackEntry.Category} target to ${rollbackEntry.UpdatedMonthlyTarget:0.00}.");
+        WriteLine($"Rollback audit recorded at {rollbackEntry.ChangedAtUtc:yyyy-MM-dd HH:mm:ss} UTC.");
+        return true;
+    }
+
+    /// <summary>
     /// Handles invalid menu input.
     /// </summary>
     /// <returns>True to continue the menu loop.</returns>
     private static bool HandleUnknownOption()
     {
-        WriteLine("Unknown option. Choose 1 through 8.");
+        WriteLine("Unknown option. Choose 1 through 9.");
         return true;
     }
 
@@ -340,7 +379,8 @@ public sealed class ConsoleWorkflow
         WriteLine("5. Import entries from CSV");
         WriteLine("6. Edit category budget target");
         WriteLine("7. View target change history");
-        WriteLine("8. Exit");
+        WriteLine("8. Roll back target from history");
+        WriteLine("9. Exit");
     }
 
     /// <summary>
@@ -510,6 +550,30 @@ public sealed class ConsoleWorkflow
             }
 
             WriteLine("Enter one of the listed category names.");
+        }
+    }
+
+    /// <summary>
+    /// Reads a numbered history entry selection from the user.
+    /// </summary>
+    /// <param name="historyEntries">The available history entries.</param>
+    /// <returns>The chosen history entry.</returns>
+    private static CategoryBudgetTargetHistoryEntry ReadHistoryEntrySelection(
+        IReadOnlyList<CategoryBudgetTargetHistoryEntry> historyEntries)
+    {
+        while (true)
+        {
+            Write("Select a history entry number: ");
+            var input = System.Console.ReadLine();
+
+            if (int.TryParse(input, out var selectedNumber)
+                && selectedNumber >= 1
+                && selectedNumber <= historyEntries.Count)
+            {
+                return historyEntries[selectedNumber - 1];
+            }
+
+            WriteLine("Select one of the listed history entry numbers.");
         }
     }
 

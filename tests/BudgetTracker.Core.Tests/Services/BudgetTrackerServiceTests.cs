@@ -381,6 +381,66 @@ public sealed class BudgetTrackerServiceTests
     }
 
     /// <summary>
+    /// Confirms a history entry can roll a target back and records a new audit entry.
+    /// </summary>
+    [TestMethod]
+    public void RollbackBudgetTargetHistoryEntry_WithMatchingCurrentTarget_RestoresPreviousValue()
+    {
+        var selectedHistoryEntry = new CategoryBudgetTargetHistoryEntry(
+            new DateTimeOffset(2026, 7, 1, 9, 0, 0, TimeSpan.Zero),
+            "Food",
+            75.00m,
+            120.00m,
+            BudgetTargetEvaluationModes.MaxSpend);
+
+        var service = CreateService(
+            targets:
+            [
+                new CategoryBudgetTarget("Food", 120.00m)
+            ],
+            historyEntries:
+            [
+                selectedHistoryEntry
+            ]);
+
+        var rollbackEntry = service.RollbackBudgetTargetHistoryEntry(selectedHistoryEntry);
+        var targets = service.GetConfiguredBudgetTargets();
+        var historyEntries = service.GetBudgetTargetHistory();
+
+        Assert.AreEqual(75.00m, targets[0].MonthlyTarget);
+        Assert.AreEqual("Food", rollbackEntry.Category);
+        Assert.AreEqual(120.00m, rollbackEntry.PreviousMonthlyTarget);
+        Assert.AreEqual(75.00m, rollbackEntry.UpdatedMonthlyTarget);
+        Assert.AreEqual(2, historyEntries.Count);
+    }
+
+    /// <summary>
+    /// Confirms rollback rejects stale history entries when the current target has changed again.
+    /// </summary>
+    [TestMethod]
+    public void RollbackBudgetTargetHistoryEntry_WithStaleHistory_ThrowsInvalidOperationException()
+    {
+        var selectedHistoryEntry = new CategoryBudgetTargetHistoryEntry(
+            new DateTimeOffset(2026, 7, 1, 9, 0, 0, TimeSpan.Zero),
+            "Food",
+            75.00m,
+            120.00m,
+            BudgetTargetEvaluationModes.MaxSpend);
+
+        var service = CreateService(
+            targets:
+            [
+                new CategoryBudgetTarget("Food", 130.00m)
+            ],
+            historyEntries:
+            [
+                selectedHistoryEntry
+            ]);
+
+        Assert.Throws<InvalidOperationException>(() => service.RollbackBudgetTargetHistoryEntry(selectedHistoryEntry));
+    }
+
+    /// <summary>
     /// Creates a test-ready service instance.
     /// </summary>
     /// <returns>A configured budget tracker service.</returns>

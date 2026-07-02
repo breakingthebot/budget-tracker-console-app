@@ -237,6 +237,64 @@ public sealed class BudgetTrackerService
     }
 
     /// <summary>
+    /// Rolls a category target back to the previous value described by a history entry.
+    /// </summary>
+    /// <param name="historyEntry">The history entry to replay in reverse.</param>
+    /// <returns>The new history entry recorded for the rollback.</returns>
+    public CategoryBudgetTargetHistoryEntry RollbackBudgetTargetHistoryEntry(CategoryBudgetTargetHistoryEntry historyEntry)
+    {
+        ArgumentNullException.ThrowIfNull(historyEntry);
+
+        var configuredCategories = categoryDefinitionProvider.LoadCategories();
+        var matchingCategory = configuredCategories.FirstOrDefault(item =>
+            string.Equals(item.Name, historyEntry.Category, StringComparison.OrdinalIgnoreCase));
+
+        if (matchingCategory is null)
+        {
+            throw new ArgumentException($"Category '{historyEntry.Category}' is not configured.", nameof(historyEntry));
+        }
+
+        var currentTarget = GetConfiguredBudgetTargets().FirstOrDefault(target =>
+            string.Equals(target.Category, matchingCategory.Name, StringComparison.OrdinalIgnoreCase));
+
+        if (currentTarget is null)
+        {
+            throw new InvalidOperationException($"Category '{matchingCategory.Name}' does not have a configured budget target to roll back.");
+        }
+
+        if (!string.Equals(currentTarget.EvaluationMode, historyEntry.EvaluationMode, StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException(
+                $"Category '{matchingCategory.Name}' no longer uses evaluation mode '{historyEntry.EvaluationMode}', so that history entry cannot be rolled back safely.");
+        }
+
+        if (currentTarget.MonthlyTarget != historyEntry.UpdatedMonthlyTarget)
+        {
+            throw new InvalidOperationException(
+                $"Category '{matchingCategory.Name}' currently uses target ${currentTarget.MonthlyTarget:0.00}, not the historical value ${historyEntry.UpdatedMonthlyTarget:0.00}. Choose a more recent history entry or edit the target directly.");
+        }
+
+        var rollbackEntry = UpdateCategoryBudgetTarget(matchingCategory.Name, historyEntry.PreviousMonthlyTarget);
+
+        if (rollbackEntry is null)
+        {
+            throw new InvalidOperationException($"Category '{matchingCategory.Name}' is already at the historical target value.");
+        }
+
+        logger.LogInfo(
+            "Category budget target rolled back from history.",
+            new
+            {
+                Category = matchingCategory.Name,
+                rolledBackChangedAtUtc = historyEntry.ChangedAtUtc,
+                historyEntry.PreviousMonthlyTarget,
+                historyEntry.UpdatedMonthlyTarget
+            });
+
+        return rollbackEntry;
+    }
+
+    /// <summary>
     /// Creates a monthly spending report.
     /// </summary>
     /// <param name="month">Any date inside the month to report.</param>

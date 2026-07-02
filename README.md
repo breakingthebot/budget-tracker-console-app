@@ -1,6 +1,6 @@
 # Budget Tracker Console App
 
-A .NET 8 console app for tracking configurable expense categories, saving data locally, checking category targets, editing monthly budget targets, auditing target-change history, tracking savings progress, reviewing month-end budget health, exporting monthly data to CSV files, and previewing CSV imports before applying them.
+A .NET 8 console app for tracking configurable expense categories, saving data locally, checking category targets, editing monthly budget targets, auditing and rolling back target-change history, tracking savings progress, reviewing month-end budget health, exporting monthly data to CSV files, and previewing CSV imports before applying them.
 
 ## Stack
 - C# / .NET 8
@@ -22,7 +22,7 @@ No environment variables are required right now. See `.env.example`.
 
 ## Running Locally
 1. Run `dotnet run --project src/BudgetTracker.App`.
-2. Use the menu to add expenses, view a monthly report with target warnings, export CSV files, import CSV files, list entries, edit monthly category targets, or review target-change history.
+2. Use the menu to add expenses, view a monthly report with target warnings, export CSV files, import CSV files, list entries, edit monthly category targets, review target-change history, or roll a target back from history.
 3. Run `dotnet run --project src/BudgetTracker.App -- --version` to print the app version.
 4. Re-run the app to confirm previous entries reload from `data/budget-entries.json`.
 
@@ -30,7 +30,7 @@ No environment variables are required right now. See `.env.example`.
 Not deployed. This is a local console application.
 
 ## Architecture Notes
-This version adds a real audit trail for category budget changes, which moves the project beyond simple config editing into a more realistic operational workflow. Target definitions still live in checked-in configuration, but every actual change now produces a separate runtime history record under `data/`, and the console can query that history directly so you can answer what changed, when it changed, and which category was affected.
+This version turns the target audit trail into an operational feature by allowing safe rollback from recorded history. Instead of treating history as a passive log, the app now lets you pick a recorded target change and restore the earlier value, while refusing to replay stale history entries after newer edits have already changed that same category again.
 
 ## Notes
 - Budget data is stored locally at `data/budget-entries.json` and that folder is ignored by Git.
@@ -38,10 +38,12 @@ This version adds a real audit trail for category budget changes, which moves th
 - Monthly category targets are checked into `src/BudgetTracker.App/Configuration/budget-targets.json`.
 - Monthly target edits update `src/BudgetTracker.App/Configuration/budget-targets.json` while preserving each target's evaluation mode.
 - Budget target audit history is stored locally at `data/budget-target-history.json` and that file is ignored by Git.
+- Target rollback records a fresh audit entry, so history stays append-only instead of silently rewriting prior changes.
 - Savings targets can use `"evaluationMode": "min-progress"` to behave like goals instead of overspend limits.
 - CSV exports are written to `exports/budget-export-yyyy-MM.csv` and that folder is ignored by Git.
 - CSV imports must use the header `Date,Category,Description,Amount`.
 - CSV imports preview new rows and duplicates before anything is saved.
 - Target history can be filtered to one configured category from the console menu.
+- Target rollback only works when the current target still matches the selected historical value, which prevents stale rollbacks.
 - GitHub Actions CI restores dependencies, builds the console app, and runs the MSTest suite on every push and pull request.
 - Logging is structured to make later debugging and file-based logging easier.
